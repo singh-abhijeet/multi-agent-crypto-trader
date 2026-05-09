@@ -9,7 +9,7 @@ The system is designed with a modern, decoupled architecture:
 *   **Frontend:** Built with Angular 21, the frontend provides a user interface to view portfolio status, recent trades, system logs, and manually trigger new trading cycles for specific assets.
 *   **Backend:** Developed using Python and FastAPI, it serves as the central orchestrator. It handles RESTful API requests from the frontend, manages database connections, and triggers the AI agent workflows.
 *   **Agent Orchestration (LangGraph):** The core intelligence of the system is modeled as a state graph using LangGraph. This allows for a structured, multi-agent workflow where data is passed sequentially from data gatherers to analysts, strategists, and finally execution managers.
-*   **LLM Integration:** Google's Gemini-1.5-pro model is utilized within specific agents (Strategy/Decision and Risk Management) to process complex data and output structured decisions and reasoning.
+*   **LLM Integration:** Google's Gemini-3.1-pro model is utilized within specific agents (Strategy/Decision and Risk Management) to process complex data and output structured decisions and reasoning.
 *   **Database:** MongoDB is used for persistent storage of portfolios, trade histories, and execution logs. The system also includes an in-memory fallback mechanism if a local MongoDB instance is not available.
 
 ## Agentic Workflow
@@ -67,7 +67,7 @@ graph TD
     end
     
     subgraph AI Orchestration
-        LangGraph <-->|Prompts & Responses| LLM[Google Gemini LLM API]
+        LangGraph <-->|Prompts & Responses| LLM[LLM API]
     end
 ```
 
@@ -83,19 +83,19 @@ stateDiagram-v2
     analyze_sentiment --> analyze_technicals: Sentiment Analyzed
     analyze_technicals --> formulate_strategy: Technicals Analyzed
     
-    formulate_strategy --> evaluate_risk: Strategy Proposed (via Gemini)
-    evaluate_risk --> execute_trade: Risk Evaluated (via Gemini)
+    formulate_strategy --> evaluate_risk: Strategy Proposed (via LLM)
+    evaluate_risk --> execute_trade: Risk Evaluated (via LLM)
     
     execute_trade --> [*]: Trade Executed (or Hold)
     
     note right of formulate_strategy
-        Uses Gemini LLM to decide
+        Uses LLM to decide
         BUY, SELL, or HOLD based on
         aggregated data.
     end note
     
     note right of evaluate_risk
-        Uses Gemini LLM to rigorously
+        Uses LLM to rigorously
         evaluate the proposed strategy
         against risk principles.
     end note
