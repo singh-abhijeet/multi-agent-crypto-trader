@@ -1,0 +1,14 @@
+.reasoning-hub { padding: 20px; font-family: sans-serif; }
+.log-entry { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 20px; padding: 15px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.header { font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
+.time { color: #666; margin-right: 15px; }
+.section { margin-bottom: 15px; }
+.section h4 { margin: 0 0 5px 0; color: #333; }
+pre { background: #f4f4f4; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
+.strategy pre { border-left: 4px solid #007bff; }
+.risk pre { border-left: 4px solid #dc3545; }
+.footer { border-top: 1px solid #eee; padding-top: 10px; font-weight: bold; }
+.executed { color: green; }
+.rejected { color: red; }
+button { padding: 8px 16px; margin-bottom: 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+button:hover { background: #0056b3; }

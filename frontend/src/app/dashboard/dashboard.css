@@ -1,0 +1,6 @@
+.dashboard { padding: 20px; font-family: sans-serif; }
+.card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 20px; background: #f9f9f9; }
+.trades-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.trades-table th, .trades-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+.buy { color: green; font-weight: bold; }
+.sell { color: red; font-weight: bold; }

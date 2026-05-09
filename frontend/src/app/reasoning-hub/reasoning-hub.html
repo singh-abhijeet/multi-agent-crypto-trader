@@ -1,0 +1,34 @@
+<div class="reasoning-hub">
+  <h2>AI Reasoning Hub</h2>
+  <button (click)="loadLogs()">Refresh Logs</button>
+  <div class="log-entry" *ngFor="let log of logs">
+    <div class="header">
+      <span class="time">{{ log.timestamp | date:'medium' }}</span>
+      <span class="asset">Target: {{ log.asset }}</span>
+    </div>
+    
+    <div class="section">
+      <h4>Data Gathered</h4>
+      <p><strong>Market:</strong> Price: ${{ log.market_data?.price }}, Vol: {{ log.market_data?.volume }}</p>
+      <p><strong>Sentiment:</strong> Score: {{ log.sentiment_data?.score }} - {{ log.sentiment_data?.summary }}</p>
+      <p><strong>Technicals:</strong> RSI: {{ log.technical_data?.RSI }}, MACD: {{ log.technical_data?.MACD }}</p>
+    </div>
+
+    <div class="section strategy">
+      <h4>Strategy Agent (Gemini) Decision</h4>
+      <pre>{{ log.strategy_decision }}</pre>
+    </div>
+
+    <div class="section risk">
+      <h4>Risk Agent (Gemini) Evaluation</h4>
+      <pre>{{ log.risk_assessment }}</pre>
+    </div>
+
+    <div class="footer">
+      <span class="outcome" [class.executed]="log.trade_executed" [class.rejected]="!log.trade_executed">
+        Outcome: {{ log.trade_executed ? 'Trade Executed' : 'Trade Rejected/Held' }}
+      </span>
+      <span *ngIf="log.trade_executed"> ({{ log.proposed_trade?.action }} {{ log.proposed_trade?.amount }} {{ log.proposed_trade?.asset }})</span>
+    </div>
+  </div>
+</div>
