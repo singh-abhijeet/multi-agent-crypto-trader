@@ -12,6 +12,37 @@ The system is designed with a modern, decoupled architecture:
 *   **LLM Integration:** Google's Gemini-1.5-pro model is utilized within specific agents (Strategy/Decision and Risk Management) to process complex data and output structured decisions and reasoning.
 *   **Database:** MongoDB is used for persistent storage of portfolios, trade histories, and execution logs. The system also includes an in-memory fallback mechanism if a local MongoDB instance is not available.
 
+## Agentic Workflow
+
+The core trading intelligence is powered by a multi-agent system orchestrated by LangGraph. Each agent has a specific role, contributing to a robust, AI-driven trading decision.
+
+### Agents and Their Roles
+
+1.  **Market Data Gatherer:**
+    *   **Role:** Collects real-time market data (e.g., current price, volume, trend).
+    *   **Value:** Provides the foundational quantitative context needed for any trading decision.
+2.  **Sentiment Analyst:**
+    *   **Role:** Analyzes market sentiment (e.g., news headlines, social media trends) and provides a sentiment score and summary.
+    *   **Value:** Captures the emotional and qualitative market drivers, which are crucial in highly volatile crypto markets.
+3.  **Technical Analyst:**
+    *   **Role:** Computes and evaluates technical indicators (e.g., RSI, MACD crossovers).
+    *   **Value:** Identifies short-term momentum and historical price patterns to time market entries and exits.
+4.  **Strategy/Decision Agent (LLM-Powered):**
+    *   **Role:** Aggregates data from the Gatherer, Sentiment, and Technical analysts. It uses Google Gemini to formulate a trading strategy, outputting an ACTION (BUY, SELL, HOLD), AMOUNT, and detailed REASONING.
+    *   **Value:** Acts as the "brain," synthesizing diverse data streams to make intelligent, context-aware decisions rather than relying on rigid, rule-based algorithms.
+5.  **Risk Manager (LLM-Powered):**
+    *   **Role:** Receives the proposed strategy and acts as a strict safeguard. It uses Google Gemini to evaluate the proposed trade against standard risk management principles. It has the authority to APPROVE or REJECT the trade.
+    *   **Value:** Protects the portfolio from severe drawdowns by vetoing trades that exhibit excessive risk or irrational exuberance, ensuring long-term capital preservation.
+6.  **Execution Agent:**
+    *   **Role:** Handles the final step. If a trade is approved by the Risk Manager, this agent executes the order (e.g., calling a broker API or updating the local database).
+    *   **Value:** Automates the physical trade execution, removing human latency and emotional hesitation.
+
+### Control and Communication Flow
+
+The agents do not communicate with each other directly or randomly. Instead, their execution is strictly controlled by a **LangGraph state machine**. 
+
+A shared `AgentState` object acts as the single source of truth and the medium for communication. As the graph executes sequentially, each agent receives the state, performs its specific computation or LLM invocation, appends its findings to the state, and passes the enriched state to the next agent down the pipeline. This ensures a predictable, auditable, and orderly flow of information from raw data gathering to final execution.
+
 ## Module Interactions
 
 1.  **User Interaction:** The user interacts with the Angular frontend to request a new trading cycle for an asset (e.g., BTC).
@@ -29,12 +60,12 @@ The system is designed with a modern, decoupled architecture:
 graph TD
     User([User]) -->|Interacts with UI| Frontend[Angular Frontend]
     Frontend <-->|REST API| Backend[FastAPI Backend]
-
+    
     subgraph Server Infrastructure
         Backend -->|Persists Data| MongoDB[(MongoDB Database)]
         Backend -->|Invokes Workflow| LangGraph[LangGraph Engine]
     end
-
+    
     subgraph AI Orchestration
         LangGraph <-->|Prompts & Responses| LLM[Google Gemini LLM API]
     end
@@ -47,22 +78,22 @@ The following diagram details the sequential execution of the AI agents within t
 ```mermaid
 stateDiagram-v2
     [*] --> gather_market_data
-
+    
     gather_market_data --> analyze_sentiment: Market Data Gathered
     analyze_sentiment --> analyze_technicals: Sentiment Analyzed
     analyze_technicals --> formulate_strategy: Technicals Analyzed
-
+    
     formulate_strategy --> evaluate_risk: Strategy Proposed (via Gemini)
     evaluate_risk --> execute_trade: Risk Evaluated (via Gemini)
-
+    
     execute_trade --> [*]: Trade Executed (or Hold)
-
+    
     note right of formulate_strategy
         Uses Gemini LLM to decide
         BUY, SELL, or HOLD based on
         aggregated data.
     end note
-
+    
     note right of evaluate_risk
         Uses Gemini LLM to rigorously
         evaluate the proposed strategy
