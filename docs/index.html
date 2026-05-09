@@ -38,7 +38,7 @@
 
     <!-- Architecture Section -->
     <section>
-      <h2 class="text-3xl font-bold text-slate-900 mb-8 border-b pb-4">Architectural Insights</h2>
+      <h2 class="text-3xl font-bold text-slate-900 mb-8 border-b pb-4">Architecture Components</h2>
       <p class="text-lg text-slate-600 mb-10">The system is designed with a modern, decoupled architecture.</p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -185,29 +185,25 @@ graph TD
         <h3 class="text-xl font-bold mb-6 text-center text-slate-700">LangGraph State Flow</h3>
         <div class="flex justify-center overflow-x-auto my-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <pre class="mermaid">
-stateDiagram-v2
-    [*] --> gather_market_data
+graph TD
+    Start((Start)) --> gather_market_data
 
-    gather_market_data --> analyze_sentiment: Market Data Gathered
-    analyze_sentiment --> analyze_technicals: Sentiment Analyzed
-    analyze_technicals --> formulate_strategy: Technicals Analyzed
+    gather_market_data -->|"Market Data Gathered, Sentiment and Technicals Analyzed"| formulate_strategy
+    formulate_strategy -->|"Strategy Proposed (via LLM)"| evaluate_risk
+    evaluate_risk -->|"Risk Evaluated (via LLM)"| execute_trade
 
-    formulate_strategy --> evaluate_risk: Strategy Proposed (via Gemini)
-    evaluate_risk --> execute_trade: Risk Evaluated (via Gemini)
+    execute_trade -->|"Trade Executed (or Hold)"| End((End))
 
-    execute_trade --> [*]: Trade Executed (or Hold)
+    %% Notes attached via dotted lines
+    note_strategy["Uses LLM to decide<br>BUY, SELL, or HOLD based on<br>aggregated data."]
+    formulate_strategy -.- note_strategy
 
-    note right of formulate_strategy
-        Uses Gemini LLM to decide
-        BUY, SELL, or HOLD based on
-        aggregated data.
-    end note
+    note_risk["Uses LLM to rigorously<br>evaluate the proposed strategy<br>against risk principles."]
+    evaluate_risk -.- note_risk
 
-    note right of evaluate_risk
-        Uses Gemini LLM to rigorously
-        evaluate the proposed strategy
-        against risk principles.
-    end note
+    %% Styling to visually distinguish the notes
+    classDef note fill:#fff5ad,stroke:#d4c257,stroke-width:1px,color:#333;
+    class note_strategy,note_risk note;
           </pre>
         </div>
       </div>
