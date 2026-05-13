@@ -4,173 +4,412 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Agentic Crypto Trading System" />
   <title>Agentic Crypto Trading System</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              cyan: '#06b6d4',
+              emerald: '#10b981',
+              indigo: '#6366f1',
+              purple: '#a855f7'
+            }
+          },
+          animation: {
+            'float': 'float 6s ease-in-out infinite',
+            'float-delayed': 'float 6s ease-in-out 3s infinite',
+            'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-20px)' },
+            },
+            'pulse-glow': {
+              '0%, 100%': { opacity: 1, boxShadow: '0 0 15px 0px rgba(99, 102, 241, 0.5)' },
+              '50%': { opacity: .7, boxShadow: '0 0 30px 10px rgba(99, 102, 241, 0.8)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- AOS CSS -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
   <style>
+    html {
+      scroll-behavior: smooth;
+    }
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background-color: #f8fafc;
-      color: #0f172a;
+      overflow-x: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Animated Mesh Gradient */
+    .mesh-gradient-light {
+      background-color: #f0fdfa;
+      background-image:
+        radial-gradient(at 40% 20%, hsla(250, 100%, 85%, 1) 0px, transparent 50%),
+        radial-gradient(at 80% 0%, hsla(189, 100%, 85%, 1) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, hsla(333, 100%, 85%, 1) 0px, transparent 50%),
+        radial-gradient(at 80% 50%, hsla(250, 100%, 85%, 1) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, hsla(189, 100%, 85%, 1) 0px, transparent 50%),
+        radial-gradient(at 80% 100%, hsla(333, 100%, 85%, 1) 0px, transparent 50%),
+        radial-gradient(at 0% 0%, hsla(250, 100%, 85%, 1) 0px, transparent 50%);
+      background-size: 200% 200%;
+      animation: gradient-move 15s ease infinite;
+    }
+
+    .dark .mesh-gradient-light {
+      background-color: #0f172a;
+      background-image:
+        radial-gradient(at 40% 20%, hsla(250, 100%, 20%, 1) 0px, transparent 50%),
+        radial-gradient(at 80% 0%, hsla(189, 100%, 20%, 1) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, hsla(333, 100%, 20%, 1) 0px, transparent 50%),
+        radial-gradient(at 80% 50%, hsla(250, 100%, 20%, 1) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, hsla(189, 100%, 20%, 1) 0px, transparent 50%),
+        radial-gradient(at 80% 100%, hsla(333, 100%, 20%, 1) 0px, transparent 50%),
+        radial-gradient(at 0% 0%, hsla(250, 100%, 20%, 1) 0px, transparent 50%);
+    }
+
+    @keyframes gradient-move {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Glassmorphism */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+    }
+
+    .dark .glass-card {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    }
+
+    .glass-nav {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .dark .glass-nav {
+      background: rgba(15, 23, 42, 0.8);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Icon Bounce */
+    .icon-bounce:hover i {
+      animation: bounce 1s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-25%); }
+    }
+
+    /* Gradient Text */
+    .text-gradient {
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-image: linear-gradient(to right, #10b981, #06b6d4, #6366f1);
     }
   </style>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- VanillaTilt for 3D tilt cards -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
-<body>
-<div class="min-h-screen bg-slate-50 text-slate-800">
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300">
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 right-0 z-50 glass-nav py-4 px-6 md:px-12 transition-all duration-300" id="navbar">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-brand-indigo/10 text-brand-indigo rounded-xl">
+          <i data-lucide="bot" class="w-6 h-6"></i>
+        </div>
+        <span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white">AgenticTrader</span>
+      </div>
+
+      <button id="themeToggle" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle Dark Mode">
+        <i data-lucide="moon" class="w-5 h-5 dark:hidden text-slate-700"></i>
+        <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-slate-200"></i>
+      </button>
+    </div>
+  </nav>
+
+<div>
   <!-- Header / Hero -->
-  <header class="bg-white border-b border-slate-200 py-16 px-6 md:px-12 text-center">
-    <div class="max-w-4xl mx-auto">
-      <div class="flex justify-center mb-6">
-        <div class="p-4 bg-indigo-50 text-indigo-600 rounded-full">
-          <i data-lucide="bot" style="width: 48px; height: 48px;"></i>
+  <header class="relative min-h-screen mesh-gradient-light flex items-center justify-center pt-24 pb-16 px-6 md:px-12 overflow-hidden">
+    <div class="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center relative z-10">
+
+      <!-- Text Content -->
+      <div class="text-center lg:text-left space-y-8" data-aos="fade-right">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-semibold text-brand-indigo mb-2">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-indigo opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-brand-indigo"></span>
+          </span>
+          Next-Gen Trading Intelligence
+        </div>
+
+        <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
+          Automated <br />
+          <span class="text-gradient">Crypto Trading</span> <br />
+          System
+        </h1>
+
+        <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed font-light">
+          An Agentic cryptocurrency trading system featuring an Angular frontend and a Python FastAPI backend. Powered by <span class="font-semibold text-brand-indigo">LangGraph</span> and <span class="font-semibold text-brand-purple">Google Gemini</span>.
+        </p>
+
+        <div class="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-4">
+          <a href="https://github.com/singh-abhijeet/multi-agent-crypto-trader" target="_blank" rel="noopener noreferrer"
+             class="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-lg rounded-2xl transition-all duration-300 animate-pulse-glow hover:scale-105">
+            <i data-lucide="github" class="w-6 h-6 transition-transform group-hover:rotate-12"></i>
+            View on GitHub
+          </a>
+          <a href="#architecture" class="group inline-flex items-center justify-center gap-3 px-8 py-4 glass-card font-medium text-lg rounded-2xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
+            Explore Architecture
+            <i data-lucide="arrow-down" class="w-5 h-5 transition-transform group-hover:translate-y-1"></i>
+          </a>
         </div>
       </div>
-      <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-6">
-        Automated Crypto Trading System
-      </h1>
-      <p class="text-xl text-slate-600 leading-relaxed mb-10">
-        An Agentic cryptocurrency trading system, featuring an Angular-based frontend and a Python FastAPI backend that leverages <span class="font-semibold text-indigo-600">LangGraph</span> and <span class="font-semibold text-indigo-600">Google Gemini</span> to orchestrate a team of AI Trading agents.
-      </p>
 
-      <div class="flex justify-center">
-        <a href="https://github.com/singh-abhijeet/multi-agent-crypto-trader" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-3 px-8 py-4 bg-slate-900 text-white font-medium text-lg rounded-full hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
-          <i data-lucide="github" style="width: 24px; height: 24px;"></i>
-          View Repository on GitHub
-        </a>
+      <!-- Floating Mockup -->
+      <div class="relative lg:h-[600px] flex items-center justify-center" data-aos="fade-left" data-aos-delay="200">
+        <!-- Background Glow -->
+        <div class="absolute inset-0 bg-brand-indigo/20 dark:bg-brand-indigo/10 blur-[100px] rounded-full"></div>
+
+        <!-- Main 'Laptop' Frame -->
+        <div class="relative z-20 w-full max-w-md bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-float transform rotate-[-5deg]">
+          <div class="bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden relative">
+            <!-- Simulated Browser Top -->
+            <div class="flex gap-1.5 px-4 py-3 bg-slate-200/50 dark:bg-slate-800/50">
+              <div class="w-3 h-3 rounded-full bg-red-400"></div>
+              <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+              <div class="w-3 h-3 rounded-full bg-green-400"></div>
+            </div>
+            <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=2070&auto=format&fit=crop" alt="Trading Dashboard" loading="lazy" class="w-full h-auto opacity-90 mix-blend-luminosity hover:mix-blend-normal transition-all duration-500">
+          </div>
+        </div>
+
+        <!-- Secondary 'Phone' Frame -->
+        <div class="absolute -right-4 md:-right-12 bottom-12 z-30 w-48 bg-white dark:bg-slate-800 p-2 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-float-delayed transform rotate-[10deg]">
+           <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden h-64 relative flex items-center justify-center">
+             <div class="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1641580529558-a96cf1df6084?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center"></div>
+             <div class="relative z-10 glass-card p-4 rounded-xl flex flex-col items-center">
+                <i data-lucide="trending-up" class="w-8 h-8 text-brand-emerald mb-2"></i>
+                <span class="font-bold text-sm text-slate-800 dark:text-slate-200">+12.4%</span>
+             </div>
+           </div>
+        </div>
       </div>
+
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce text-slate-400">
+      <i data-lucide="chevron-down" class="w-8 h-8"></i>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto py-16 px-6 md:px-12 space-y-24">
+  <main class="max-w-7xl mx-auto py-24 px-6 md:px-12 space-y-32" id="architecture">
 
     <!-- Architecture Section -->
     <section>
-      <h2 class="text-3xl font-bold text-slate-900 mb-8 border-b pb-4">Architecture Components</h2>
-      <p class="text-lg text-slate-600 mb-10">The system is designed with a modern, decoupled architecture.</p>
+      <div class="text-center max-w-2xl mx-auto mb-16" data-aos="fade-up">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-6">Architecture Components</h2>
+        <p class="text-lg text-slate-600 dark:text-slate-400">The system is designed with a modern, decoupled architecture ensuring high scalability and rapid AI execution.</p>
+      </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <i data-lucide="layout" class="text-blue-500 mb-4" style="width: 32px; height: 32px;"></i>
-          <h3 class="text-xl font-bold mb-3">Frontend</h3>
-          <p class="text-slate-600">Built with Angular 21, providing a UI to view portfolio status, recent trades, logs, and trigger new trading cycles manually.</p>
+        <div data-tilt data-tilt-glare data-tilt-max-glare="0.2" data-tilt-max="5" data-aos="fade-up" data-aos-delay="100" class="glass-card p-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:shadow-brand-cyan/20 group cursor-pointer icon-bounce">
+          <div class="p-4 bg-brand-cyan/10 rounded-2xl w-fit mb-6">
+            <i data-lucide="layout" class="text-brand-cyan w-8 h-8"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-4 dark:text-white">Frontend</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">Built with Angular 21, providing a UI to view portfolio status, recent trades, logs, and trigger new trading cycles manually.</p>
         </div>
 
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <i data-lucide="server" class="text-green-500 mb-4" style="width: 32px; height: 32px;"></i>
-          <h3 class="text-xl font-bold mb-3">Backend</h3>
-          <p class="text-slate-600">Developed using Python and FastAPI, handling REST APIs, database connections, and triggering AI workflows.</p>
+        <div data-tilt data-tilt-glare data-tilt-max-glare="0.2" data-tilt-max="5" data-aos="fade-up" data-aos-delay="200" class="glass-card p-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:shadow-brand-emerald/20 group cursor-pointer icon-bounce">
+          <div class="p-4 bg-brand-emerald/10 rounded-2xl w-fit mb-6">
+            <i data-lucide="server" class="text-brand-emerald w-8 h-8"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-4 dark:text-white">Backend</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">Developed using Python and FastAPI, handling REST APIs, database connections, and triggering AI workflows.</p>
         </div>
 
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <i data-lucide="database" class="text-purple-500 mb-4" style="width: 32px; height: 32px;"></i>
-          <h3 class="text-xl font-bold mb-3">Database</h3>
-          <p class="text-slate-600">MongoDB is used for persistent storage of portfolios, trade histories, and execution logs, with an in-memory fallback.</p>
+        <div data-tilt data-tilt-glare data-tilt-max-glare="0.2" data-tilt-max="5" data-aos="fade-up" data-aos-delay="300" class="glass-card p-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:shadow-brand-purple/20 group cursor-pointer icon-bounce">
+          <div class="p-4 bg-brand-purple/10 rounded-2xl w-fit mb-6">
+            <i data-lucide="database" class="text-brand-purple w-8 h-8"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-4 dark:text-white">Database</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">MongoDB is used for persistent storage of portfolios, trade histories, and execution logs, with an in-memory fallback.</p>
         </div>
 
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <i data-lucide="bot" class="text-indigo-500 mb-4" style="width: 32px; height: 32px;"></i>
-          <h3 class="text-xl font-bold mb-3">LangGraph</h3>
-          <p class="text-slate-600">Models core intelligence as a state graph, allowing structured data flow from data gatherers to execution managers.</p>
+        <div data-tilt data-tilt-glare data-tilt-max-glare="0.2" data-tilt-max="5" data-aos="fade-up" data-aos-delay="400" class="glass-card p-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:shadow-brand-indigo/20 group cursor-pointer icon-bounce">
+          <div class="p-4 bg-brand-indigo/10 rounded-2xl w-fit mb-6">
+            <i data-lucide="bot" class="text-brand-indigo w-8 h-8"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-4 dark:text-white">LangGraph</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">Models core intelligence as a state graph, allowing structured data flow from data gatherers to execution managers.</p>
         </div>
 
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
-          <i data-lucide="cpu" class="text-orange-500 mb-4" style="width: 32px; height: 32px;"></i>
-          <h3 class="text-xl font-bold mb-3">AI</h3>
-          <p class="text-slate-600">Integrates Google's Gemini-3.1-pro model to process complex data and output structured trading decisions and rigorous risk reasoning.</p>
+        <div id="ai-card" data-tilt data-tilt-glare data-tilt-max-glare="0.2" data-tilt-max="5" data-aos="fade-up" data-aos-delay="500" class="glass-card p-8 rounded-2xl transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/30 group cursor-pointer lg:col-span-2 relative overflow-hidden border-orange-400/50 icon-bounce">
+          <div class="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div class="absolute top-0 right-0 p-4">
+             <span class="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300">
+                <i data-lucide="sparkles" class="w-3 h-3"></i> Core Intelligence
+             </span>
+          </div>
+          <div class="p-4 bg-orange-500/10 rounded-2xl w-fit mb-6 relative z-10">
+            <i data-lucide="cpu" class="text-orange-500 w-8 h-8"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-4 dark:text-white relative z-10">AI Integration</h3>
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed relative z-10 text-lg">Integrates Google's <span class="font-semibold text-slate-800 dark:text-slate-200">Gemini-3.1-pro</span> model to process complex data and output structured trading decisions and rigorous risk reasoning.</p>
         </div>
       </div>
     </section>
 
     <!-- Agentic Workflow Section -->
     <section>
-      <h2 class="text-3xl font-bold text-slate-900 mb-8 border-b pb-4">Agentic Workflow</h2>
-      <p class="text-lg text-slate-600 mb-10">
-        The core trading intelligence is powered by a multi-agent system orchestrated by LangGraph. Each agent plays a specific role.
-      </p>
+      <div class="text-center max-w-2xl mx-auto mb-16" data-aos="fade-up">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-6">Agentic Workflow</h2>
+        <p class="text-lg text-slate-600 dark:text-slate-400">
+          The core trading intelligence is powered by a multi-agent system orchestrated by LangGraph. Each agent plays a specific role.
+        </p>
+      </div>
 
-      <div class="space-y-6">
-        <div class="flex gap-6 items-start bg-white p-6 rounded-xl border border-slate-200">
-          <div class="p-3 bg-slate-100 rounded-lg text-slate-700 shrink-0">
-            <i data-lucide="search" style="width: 24px; height: 24px;"></i>
+      <div class="grid gap-6 md:grid-cols-2">
+        <div data-aos="fade-up" data-aos-delay="100" class="flex flex-col sm:flex-row gap-6 items-start glass-card p-6 md:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-xl icon-bounce">
+          <div class="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-700 dark:text-slate-300 shrink-0 shadow-inner">
+            <i data-lucide="search" class="w-8 h-8"></i>
           </div>
           <div>
-            <h3 class="text-xl font-bold mb-2">1. Market Data Gatherer</h3>
-            <p class="text-slate-600 mb-2"><strong class="text-slate-800">Role:</strong> Collects real-time market data (price, volume, trend).</p>
-            <p class="text-slate-600"><strong class="text-slate-800">Value:</strong> Provides foundational quantitative context.</p>
+            <h3 class="text-xl font-bold mb-3 dark:text-white flex items-center gap-2">
+              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs">1</span>
+              Market Data Gatherer
+            </h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-2"><strong class="text-slate-800 dark:text-slate-200">Role:</strong> Collects real-time market data (price, volume, trend).</p>
+            <p class="text-slate-600 dark:text-slate-400"><strong class="text-slate-800 dark:text-slate-200">Value:</strong> Provides foundational quantitative context.</p>
           </div>
         </div>
 
-        <div class="flex gap-6 items-start bg-white p-6 rounded-xl border border-slate-200">
-          <div class="p-3 bg-blue-50 rounded-lg text-blue-600 shrink-0">
-            <i data-lucide="message-square" style="width: 24px; height: 24px;"></i>
+        <div data-aos="fade-up" data-aos-delay="200" class="flex flex-col sm:flex-row gap-6 items-start glass-card p-6 md:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-xl icon-bounce">
+          <div class="p-4 bg-brand-cyan/10 rounded-2xl text-brand-cyan shrink-0 shadow-inner">
+            <i data-lucide="message-square" class="w-8 h-8"></i>
           </div>
           <div>
-            <h3 class="text-xl font-bold mb-2">2. Sentiment Analyst</h3>
-            <p class="text-slate-600 mb-2"><strong class="text-slate-800">Role:</strong> Analyzes news and social media to provide a sentiment score.</p>
-            <p class="text-slate-600"><strong class="text-slate-800">Value:</strong> Captures emotional and qualitative market drivers.</p>
+            <h3 class="text-xl font-bold mb-3 dark:text-white flex items-center gap-2">
+              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-brand-cyan/20 text-brand-cyan text-xs">2</span>
+              Sentiment Analyst
+            </h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-2"><strong class="text-slate-800 dark:text-slate-200">Role:</strong> Analyzes news and social media to provide a sentiment score.</p>
+            <p class="text-slate-600 dark:text-slate-400"><strong class="text-slate-800 dark:text-slate-200">Value:</strong> Captures emotional and qualitative market drivers.</p>
           </div>
         </div>
 
-        <div class="flex gap-6 items-start bg-white p-6 rounded-xl border border-slate-200">
-          <div class="p-3 bg-teal-50 rounded-lg text-teal-600 shrink-0">
-            <i data-lucide="trending-up" style="width: 24px; height: 24px;"></i>
+        <div data-aos="fade-up" data-aos-delay="300" class="flex flex-col sm:flex-row gap-6 items-start glass-card p-6 md:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-xl icon-bounce">
+          <div class="p-4 bg-brand-emerald/10 rounded-2xl text-brand-emerald shrink-0 shadow-inner">
+            <i data-lucide="trending-up" class="w-8 h-8"></i>
           </div>
           <div>
-            <h3 class="text-xl font-bold mb-2">3. Technical Analyst</h3>
-            <p class="text-slate-600 mb-2"><strong class="text-slate-800">Role:</strong> Computes technical indicators like RSI and MACD.</p>
-            <p class="text-slate-600"><strong class="text-slate-800">Value:</strong> Identifies short-term momentum and price patterns.</p>
+            <h3 class="text-xl font-bold mb-3 dark:text-white flex items-center gap-2">
+              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-brand-emerald/20 text-brand-emerald text-xs">3</span>
+              Technical Analyst
+            </h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-2"><strong class="text-slate-800 dark:text-slate-200">Role:</strong> Computes technical indicators like RSI and MACD.</p>
+            <p class="text-slate-600 dark:text-slate-400"><strong class="text-slate-800 dark:text-slate-200">Value:</strong> Identifies short-term momentum and price patterns.</p>
           </div>
         </div>
 
-        <div class="flex gap-6 items-start bg-white p-6 rounded-xl border-l-4 border-l-indigo-500 shadow-sm">
-          <div class="p-3 bg-indigo-50 rounded-lg text-indigo-600 shrink-0">
-            <i data-lucide="cpu" style="width: 24px; height: 24px;"></i>
+        <div id="strategy-card" data-aos="fade-up" data-aos-delay="400" class="flex flex-col sm:flex-row gap-6 items-start glass-card p-6 md:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-brand-indigo/30 relative overflow-hidden border-brand-indigo/50 icon-bounce cursor-pointer">
+          <div class="absolute inset-0 bg-gradient-to-br from-brand-indigo/5 to-transparent pointer-events-none"></div>
+          <div class="absolute top-0 right-0 w-24 h-24 bg-brand-indigo/10 blur-[30px] rounded-full"></div>
+          <div class="p-4 bg-brand-indigo/10 rounded-2xl text-brand-indigo shrink-0 shadow-inner relative z-10">
+            <i data-lucide="cpu" class="w-8 h-8"></i>
           </div>
-          <div>
-            <h3 class="text-xl font-bold mb-2">4. Strategy/Decision Agent (LLM)</h3>
-            <p class="text-slate-600 mb-2"><strong class="text-slate-800">Role:</strong> Aggregates data and uses Gemini to formulate a strategy (ACTION, AMOUNT, REASONING).</p>
-            <p class="text-slate-600"><strong class="text-slate-800">Value:</strong> Acts as the brain, synthesizing diverse streams to make context-aware decisions.</p>
-          </div>
-        </div>
-
-        <div class="flex gap-6 items-start bg-white p-6 rounded-xl border-l-4 border-l-orange-500 shadow-sm">
-          <div class="p-3 bg-orange-50 rounded-lg text-orange-600 shrink-0">
-            <i data-lucide="shield" style="width: 24px; height: 24px;"></i>
-          </div>
-          <div>
-            <h3 class="text-xl font-bold mb-2">5. Risk Manager (LLM)</h3>
-            <p class="text-slate-600 mb-2"><strong class="text-slate-800">Role:</strong> Evaluates proposed trades against standard risk management principles to APPROVE or REJECT.</p>
-            <p class="text-slate-600"><strong class="text-slate-800">Value:</strong> Protects portfolio from severe drawdowns, ensuring long-term capital preservation.</p>
+          <div class="relative z-10">
+            <h3 class="text-xl font-bold mb-3 dark:text-white flex items-center gap-2">
+              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-brand-indigo/20 text-brand-indigo text-xs">4</span>
+              Strategy/Decision Agent
+            </h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-2"><strong class="text-slate-800 dark:text-slate-200">Role:</strong> Aggregates data and uses Gemini to formulate a strategy (ACTION, AMOUNT, REASONING).</p>
+            <p class="text-slate-600 dark:text-slate-400"><strong class="text-slate-800 dark:text-slate-200">Value:</strong> Acts as the brain, synthesizing diverse streams to make context-aware decisions.</p>
           </div>
         </div>
 
-        <div class="flex gap-6 items-start bg-white p-6 rounded-xl border border-slate-200">
-          <div class="p-3 bg-green-50 rounded-lg text-green-600 shrink-0">
-            <i data-lucide="zap" style="width: 24px; height: 24px;"></i>
+        <div data-aos="fade-up" data-aos-delay="500" class="flex flex-col sm:flex-row gap-6 items-start glass-card p-6 md:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-orange-500/30 relative overflow-hidden border-orange-500/30 icon-bounce">
+          <div class="p-4 bg-orange-500/10 rounded-2xl text-orange-500 shrink-0 shadow-inner">
+            <i data-lucide="shield" class="w-8 h-8"></i>
           </div>
           <div>
-            <h3 class="text-xl font-bold mb-2">6. Execution Agent</h3>
-            <p class="text-slate-600 mb-2"><strong class="text-slate-800">Role:</strong> Executes the order if approved by Risk Management.</p>
-            <p class="text-slate-600"><strong class="text-slate-800">Value:</strong> Automates physical trade execution.</p>
+            <h3 class="text-xl font-bold mb-3 dark:text-white flex items-center gap-2">
+              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/20 text-orange-500 text-xs">5</span>
+              Risk Manager (LLM)
+            </h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-2"><strong class="text-slate-800 dark:text-slate-200">Role:</strong> Evaluates proposed trades against standard risk management principles to APPROVE or REJECT.</p>
+            <p class="text-slate-600 dark:text-slate-400"><strong class="text-slate-800 dark:text-slate-200">Value:</strong> Protects portfolio from severe drawdowns, ensuring long-term capital preservation.</p>
+          </div>
+        </div>
+
+        <div data-aos="fade-up" data-aos-delay="600" class="flex flex-col sm:flex-row gap-6 items-start glass-card p-6 md:p-8 rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-xl icon-bounce">
+          <div class="p-4 bg-green-500/10 rounded-2xl text-green-500 shrink-0 shadow-inner">
+            <i data-lucide="zap" class="w-8 h-8"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold mb-3 dark:text-white flex items-center gap-2">
+              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-500 text-xs">6</span>
+              Execution Agent
+            </h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-2"><strong class="text-slate-800 dark:text-slate-200">Role:</strong> Executes the order if approved by Risk Management.</p>
+            <p class="text-slate-600 dark:text-slate-400"><strong class="text-slate-800 dark:text-slate-200">Value:</strong> Automates physical trade execution.</p>
           </div>
         </div>
       </div>
 
-      <div class="mt-10 p-6 bg-slate-100 rounded-xl">
-        <h4 class="font-bold text-lg mb-3">Control & Communication Flow</h4>
-        <p class="text-slate-700 leading-relaxed">
-          Agents do not communicate directly. A shared <code>AgentState</code> object is managed by the LangGraph state machine. As the graph executes sequentially, each agent receives the state, performs its task, appends findings, and passes the enriched state down the pipeline.
+      <div data-aos="fade-up" class="mt-12 p-8 glass-card rounded-2xl border-l-4 border-brand-indigo">
+        <div class="flex items-center gap-3 mb-4">
+          <i data-lucide="network" class="text-brand-indigo w-6 h-6"></i>
+          <h4 class="font-bold text-xl dark:text-white">Control & Communication Flow</h4>
+        </div>
+        <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">
+          Agents do not communicate directly. A shared <code class="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md text-brand-purple font-mono text-sm">AgentState</code> object is managed by the LangGraph state machine. As the graph executes sequentially, each agent receives the state, performs its task, appends findings, and passes the enriched state down the pipeline.
         </p>
       </div>
     </section>
 
     <!-- Diagrams Section -->
     <section>
-      <h2 class="text-3xl font-bold text-slate-900 mb-8 border-b pb-4">System Diagrams</h2>
+      <div class="text-center max-w-2xl mx-auto mb-16" data-aos="fade-up">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-6">System Diagrams</h2>
+      </div>
 
-      <div class="mb-12">
-        <h3 class="text-xl font-bold mb-6 text-center text-slate-700">Overall System Design</h3>
-        <div class="flex justify-center overflow-x-auto my-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div class="mb-16" data-aos="fade-up" data-aos-delay="100">
+        <h3 class="text-2xl font-bold mb-6 text-center text-slate-800 dark:text-slate-200">Overall System Design</h3>
+        <div class="flex justify-center overflow-x-auto my-8 glass-card p-8 rounded-3xl transition-all duration-300 hover:shadow-2xl hover:shadow-brand-indigo/10">
           <pre class="mermaid">
 graph TD
     User([User]) -->|Interacts with UI| Frontend[Angular Frontend]
@@ -188,9 +427,9 @@ graph TD
         </div>
       </div>
 
-      <div>
-        <h3 class="text-xl font-bold mb-6 text-center text-slate-700">LangGraph State Flow</h3>
-        <div class="flex justify-center overflow-x-auto my-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div data-aos="fade-up" data-aos-delay="200">
+        <h3 class="text-2xl font-bold mb-6 text-center text-slate-800 dark:text-slate-200">LangGraph State Flow</h3>
+        <div class="flex justify-center overflow-x-auto my-8 glass-card p-8 rounded-3xl transition-all duration-300 hover:shadow-2xl hover:shadow-brand-purple/10">
           <pre class="mermaid">
 graph TD
     Start((Start)) --> gather_market_data
@@ -217,50 +456,190 @@ graph TD
     </section>
 
     <!-- Setup Instructions -->
-    <section class="bg-slate-900 text-slate-300 p-8 md:p-12 rounded-2xl">
-      <h2 class="text-3xl font-bold text-white mb-8 border-b border-slate-700 pb-4">Setup & Run</h2>
+    <section class="relative rounded-3xl overflow-hidden shadow-2xl" data-aos="fade-up">
+      <div class="absolute inset-0 bg-slate-900 dark:bg-black/40"></div>
+      <!-- Decorative blobs -->
+      <div class="absolute top-0 right-0 w-64 h-64 bg-brand-indigo/20 blur-[80px] rounded-full pointer-events-none"></div>
+      <div class="absolute bottom-0 left-0 w-64 h-64 bg-brand-emerald/20 blur-[80px] rounded-full pointer-events-none"></div>
 
-      <div class="grid md:grid-cols-2 gap-12">
-        <div>
-          <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-            <i data-lucide="server" class="text-green-400" style="width: 24px; height: 24px;"></i> Backend Setup
-          </h3>
-          <ol class="space-y-4 list-decimal list-inside marker:text-slate-500">
-            <li>Navigate to backend: <code class="bg-slate-800 px-2 py-1 rounded text-sm text-green-300">cd backend</code></li>
-            <li>Install packages: <code class="bg-slate-800 px-2 py-1 rounded text-sm text-green-300">pip install -r requirements.txt</code></li>
-            <li>Set API Key: <code class="bg-slate-800 px-2 py-1 rounded text-sm text-green-300 break-all">export GOOGLE_API_KEY="..."</code></li>
-            <li>Start server: <code class="bg-slate-800 px-2 py-1 rounded text-sm text-green-300">uvicorn main:app --reload</code></li>
-          </ol>
+      <div class="relative z-10 p-8 md:p-16">
+        <div class="text-center mb-12">
+          <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Setup & Run</h2>
+          <p class="text-slate-400 text-lg">Get the agentic trader running locally in minutes.</p>
         </div>
 
-        <div>
-          <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-            <i data-lucide="layout" class="text-blue-400" style="width: 24px; height: 24px;"></i> Frontend Setup
-          </h3>
-          <ol class="space-y-4 list-decimal list-inside marker:text-slate-500">
-            <li>Navigate to frontend: <code class="bg-slate-800 px-2 py-1 rounded text-sm text-blue-300">cd frontend</code></li>
-            <li>Install packages: <code class="bg-slate-800 px-2 py-1 rounded text-sm text-blue-300">npm install</code></li>
-            <li>Start UI: <code class="bg-slate-800 px-2 py-1 rounded text-sm text-blue-300">npm start</code></li>
-          </ol>
+        <div class="grid md:grid-cols-2 gap-12">
+          <div class="glass-card bg-white/5 border-white/10 p-8 rounded-2xl hover:bg-white/10 transition-colors">
+            <h3 class="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+              <div class="p-2 bg-brand-emerald/20 rounded-lg">
+                <i data-lucide="server" class="text-brand-emerald w-6 h-6"></i>
+              </div>
+              Backend Setup
+            </h3>
+            <ol class="space-y-6 list-none counter-reset-setup">
+              <li class="flex items-center gap-4 text-slate-300">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-slate-400 text-sm font-bold shrink-0 shadow-inner">1</span>
+                <div class="flex-1">
+                  <p class="mb-2 text-sm text-slate-400">Navigate to backend</p>
+                  <code class="block w-full bg-slate-950/50 px-4 py-3 rounded-xl text-brand-emerald font-mono text-sm border border-slate-800 shadow-inner">cd backend</code>
+                </div>
+              </li>
+              <li class="flex items-center gap-4 text-slate-300">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-slate-400 text-sm font-bold shrink-0 shadow-inner">2</span>
+                <div class="flex-1">
+                  <p class="mb-2 text-sm text-slate-400">Install packages</p>
+                  <code class="block w-full bg-slate-950/50 px-4 py-3 rounded-xl text-brand-emerald font-mono text-sm border border-slate-800 shadow-inner">pip install -r requirements.txt</code>
+                </div>
+              </li>
+              <li class="flex items-center gap-4 text-slate-300">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-slate-400 text-sm font-bold shrink-0 shadow-inner">3</span>
+                <div class="flex-1">
+                  <p class="mb-2 text-sm text-slate-400">Set API Key</p>
+                  <code class="block w-full bg-slate-950/50 px-4 py-3 rounded-xl text-brand-emerald font-mono text-sm border border-slate-800 shadow-inner break-all">export GOOGLE_API_KEY="..."</code>
+                </div>
+              </li>
+              <li class="flex items-center gap-4 text-slate-300">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-slate-400 text-sm font-bold shrink-0 shadow-inner">4</span>
+                <div class="flex-1">
+                  <p class="mb-2 text-sm text-slate-400">Start server</p>
+                  <code class="block w-full bg-slate-950/50 px-4 py-3 rounded-xl text-brand-emerald font-mono text-sm border border-slate-800 shadow-inner">uvicorn main:app --reload</code>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <div class="glass-card bg-white/5 border-white/10 p-8 rounded-2xl hover:bg-white/10 transition-colors">
+            <h3 class="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+              <div class="p-2 bg-brand-cyan/20 rounded-lg">
+                <i data-lucide="layout" class="text-brand-cyan w-6 h-6"></i>
+              </div>
+              Frontend Setup
+            </h3>
+            <ol class="space-y-6 list-none counter-reset-setup">
+              <li class="flex items-center gap-4 text-slate-300">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-slate-400 text-sm font-bold shrink-0 shadow-inner">1</span>
+                <div class="flex-1">
+                  <p class="mb-2 text-sm text-slate-400">Navigate to frontend</p>
+                  <code class="block w-full bg-slate-950/50 px-4 py-3 rounded-xl text-brand-cyan font-mono text-sm border border-slate-800 shadow-inner">cd frontend</code>
+                </div>
+              </li>
+              <li class="flex items-center gap-4 text-slate-300">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-slate-400 text-sm font-bold shrink-0 shadow-inner">2</span>
+                <div class="flex-1">
+                  <p class="mb-2 text-sm text-slate-400">Install packages</p>
+                  <code class="block w-full bg-slate-950/50 px-4 py-3 rounded-xl text-brand-cyan font-mono text-sm border border-slate-800 shadow-inner">npm install</code>
+                </div>
+              </li>
+              <li class="flex items-center gap-4 text-slate-300">
+                <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-slate-400 text-sm font-bold shrink-0 shadow-inner">3</span>
+                <div class="flex-1">
+                  <p class="mb-2 text-sm text-slate-400">Start UI</p>
+                  <code class="block w-full bg-slate-950/50 px-4 py-3 rounded-xl text-brand-cyan font-mono text-sm border border-slate-800 shadow-inner">npm start</code>
+                </div>
+              </li>
+            </ol>
+          </div>
         </div>
       </div>
     </section>
 
   </main>
 
-  <footer class="bg-slate-900 border-t border-slate-800 py-8 text-center text-slate-500">
-    <a href="mailto:mikchester@gmail.com">(c) 2026 Abhijeet Singh</a>
+  <footer class="bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12 text-center text-slate-500 dark:text-slate-400 transition-colors">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex justify-center mb-6">
+        <a href="https://github.com/singh-abhijeet/multi-agent-crypto-trader" aria-label="GitHub Repository" class="p-3 bg-slate-200 dark:bg-slate-800 rounded-full hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+          <i data-lucide="github" class="w-6 h-6 text-slate-700 dark:text-slate-300"></i>
+        </a>
+      </div>
+      <p class="mb-2">Built with Angular, FastAPI, LangGraph & Gemini.</p>
+      <a href="mailto:mikchester@gmail.com" class="hover:text-brand-indigo transition-colors">(c) 2026 Abhijeet Singh</a>
+    </div>
   </footer>
 </div>
 
 <script>
   lucide.createIcons();
+
+  // AOS Init
+  window.addEventListener('load', () => {
+    AOS.init({
+      once: true,
+      offset: 50,
+      duration: 800,
+      easing: 'ease-out-cubic',
+    });
+  });
 </script>
+<!-- AOS Script -->
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+  // Dark mode toggle functionality
+  const themeToggleBtn = document.getElementById('themeToggle');
+  const htmlElement = document.documentElement;
+
+  // Check for saved theme preference or use system preference
+  if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    htmlElement.classList.add('dark');
+  } else {
+    htmlElement.classList.remove('dark');
+  }
+
+  themeToggleBtn.addEventListener('click', function() {
+    htmlElement.classList.toggle('dark');
+
+    // Save preference
+    if (htmlElement.classList.contains('dark')) {
+      localStorage.setItem('theme', 'dark');
+    } else {
+      localStorage.setItem('theme', 'light');
+    }
+
+    // Re-render Mermaid diagrams based on new theme
+    location.reload();
+  });
+
+  // Navbar blur effect on scroll
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 10) {
+      navbar.classList.add('shadow-md');
+      navbar.classList.replace('py-4', 'py-2');
+    } else {
+      navbar.classList.remove('shadow-md');
+      navbar.classList.replace('py-2', 'py-4');
+    }
+  });
+
+  // Confetti on hover for special cards
+  const triggerConfetti = (e) => {
+    const rect = e.target.getBoundingClientRect();
+    const x = (rect.left + rect.width / 2) / window.innerWidth;
+    const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+    confetti({
+      particleCount: 50,
+      spread: 60,
+      origin: { x, y },
+      colors: ['#06b6d4', '#10b981', '#6366f1', '#a855f7', '#f97316'],
+      disableForReducedMotion: true
+    });
+  };
+
+  const aiCard = document.getElementById('ai-card');
+  const strategyCard = document.getElementById('strategy-card');
+
+  if(aiCard) aiCard.addEventListener('mouseenter', triggerConfetti);
+  if(strategyCard) strategyCard.addEventListener('mouseenter', triggerConfetti);
+
+  // Theme handling for Mermaid
+  const getMermaidTheme = () => document.documentElement.classList.contains('dark') ? 'dark' : 'default';
+
   mermaid.initialize({
     startOnLoad: true,
-    theme: 'default',
+    theme: getMermaidTheme(),
     securityLevel: 'loose',
     fontFamily: 'Inter, system-ui, sans-serif'
   });
