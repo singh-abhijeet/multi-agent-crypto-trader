@@ -149,7 +149,7 @@
         <div class="p-2 bg-brand-indigo/10 text-brand-indigo rounded-xl">
           <i data-lucide="bot" class="w-6 h-6"></i>
         </div>
-        <span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white">AgenticTrader</span>
+        <span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white"></span>
       </div>
 
       <button id="themeToggle" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle Dark Mode">
@@ -175,13 +175,13 @@
         </div>
 
         <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
-          Automated <br />
+          Agentic <br />
           <span class="text-gradient">Crypto Trading</span> <br />
           System
         </h1>
 
         <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed font-light">
-          An Agentic cryptocurrency trading system featuring an Angular frontend and a Python FastAPI backend. Powered by <span class="font-semibold text-brand-indigo">LangGraph</span> and <span class="font-semibold text-brand-purple">Google Gemini</span>.
+          An Agentic cryptocurrency trading system featuring an Angular frontend and a Python FastAPI backend. Powered by <span class="font-semibold text-brand-indigo">LangGraph</span> and <span class="font-semibold text-brand-purple">Gemini LLM</span>.
         </p>
 
         <div class="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-4">
@@ -211,17 +211,17 @@
               <div class="w-3 h-3 rounded-full bg-amber-400"></div>
               <div class="w-3 h-3 rounded-full bg-green-400"></div>
             </div>
-            <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=2070&auto=format&fit=crop" alt="Trading Dashboard" loading="lazy" class="w-full h-auto opacity-90 mix-blend-luminosity hover:mix-blend-normal transition-all duration-500">
+            <img src="https://images.unsplash.com/photo-1620266746035-1e2af26a307c?q=80&w=2070&auto=format&fit=crop" alt="Trading Dashboard" loading="lazy" class="w-full h-auto opacity-90 mix-blend-luminosity hover:mix-blend-normal transition-all duration-500">
           </div>
         </div>
 
-        <!-- Secondary 'Phone' Frame -->
+        <!-- Secondary 'Phone' Frame --> 
         <div class="absolute -right-4 md:-right-12 bottom-12 z-30 w-48 bg-white dark:bg-slate-800 p-2 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-float-delayed transform rotate-[10deg]">
            <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden h-64 relative flex items-center justify-center">
-             <div class="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1641580529558-a96cf1df6084?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center"></div>
+             <div class="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center"></div>
              <div class="relative z-10 glass-card p-4 rounded-xl flex flex-col items-center">
                 <i data-lucide="trending-up" class="w-8 h-8 text-brand-emerald mb-2"></i>
-                <span class="font-bold text-sm text-slate-800 dark:text-slate-200">+12.4%</span>
+                <span class="font-bold text-sm text-slate-800 dark:text-slate-200">#NoFOMO</span>
              </div>
            </div>
         </div>
@@ -552,8 +552,8 @@ graph TD
           <i data-lucide="github" class="w-6 h-6 text-slate-700 dark:text-slate-300"></i>
         </a>
       </div>
-      <p class="mb-2">Built with Angular, FastAPI, LangGraph & Gemini.</p>
-      <a href="mailto:mikchester@gmail.com" class="hover:text-brand-indigo transition-colors">(c) 2026 Abhijeet Singh</a>
+      <p class="mb-2">Built with Angular, FastAPI, LangGraph. Powered by Gemini LLM.</p>
+      <a href="mailto:mikchester@gmail.com" class="hover:text-brand-indigo transition-colors">© 2026 Abhijeet Singh</a>
     </div>
   </footer>
 </div>
@@ -632,7 +632,7 @@ graph TD
   const strategyCard = document.getElementById('strategy-card');
 
   if(aiCard) aiCard.addEventListener('mouseenter', triggerConfetti);
-  if(strategyCard) strategyCard.addEventListener('mouseenter', triggerConfetti);
+  //if(strategyCard) strategyCard.addEventListener('mouseenter', triggerConfetti);
 
   // Theme handling for Mermaid
   const getMermaidTheme = () => document.documentElement.classList.contains('dark') ? 'dark' : 'default';
