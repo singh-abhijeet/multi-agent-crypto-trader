@@ -105,9 +105,21 @@ stateDiagram-v2
 
 ### Prerequisites
 *   Node.js and npm (for the frontend)
-*   Python 3.8+ (for the backend)
+*   Python 3.8+ (for the backend and MCP server)
 *   [MongoDB](https://www.mongodb.com/) (Optional: The backend will fall back to an in-memory mock database if MongoDB is not running locally on port 27017)
 *   A Google Gemini API Key
+
+### MCP Server Setup
+The trading tools are decoupled and hosted on an MCP (Model Context Protocol) server. The backend agents use an MCP client to communicate with this server.
+1.  Navigate to the MCP server directory:
+    ```bash
+    cd trader-mcp
+    ```
+2.  Install the required dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+*(Note: The FastAPI backend is configured to automatically invoke the `trader-mcp` server as a subprocess via the `stdio` transport. You do not need to run the MCP server manually as a separate background process for the main backend workflow to function.)*
 
 ### Backend Setup
 1.  Navigate to the backend directory:
@@ -127,7 +139,6 @@ stateDiagram-v2
     uvicorn main:app --reload
     ```
     *The backend will be available at http://localhost:8000.*
-
 ### Frontend Setup
 1.  Navigate to the frontend directory:
     ```bash
