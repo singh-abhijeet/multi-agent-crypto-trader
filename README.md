@@ -1,6 +1,6 @@
-# Automated Crypto Trading System
+# Agentic Crypto Trading System
 
-This repository contains a full-stack, automated cryptocurrency trading system. It features an Angular-based frontend and a Python FastAPI backend that leverages **LangGraph** and **Google Gemini** (LLM) to orchestrate a team of AI agents. These agents analyze market data, sentiment, and technical indicators to formulate and execute trading strategies.
+This repository contains a full-stack, automated cryptocurrency trading system. It features an Angular-based frontend and a Python FastAPI backend that leverages **LangGraph**, **MCP** and **Gemini LLM** to orchestrate a team of AI agents. These agents analyze market data, sentiment, and technical indicators to formulate and execute trading strategies.
 
 ## Architectural Insights
 
