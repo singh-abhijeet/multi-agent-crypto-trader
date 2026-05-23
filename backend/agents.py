@@ -4,6 +4,26 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 import os
 
+import json
+import sys
+from mcp import ClientSession
+from mcp.client.stdio import stdio_client, StdioServerParameters
+from contextlib import AsyncExitStack
+
+async def call_mcp_tool(tool_name: str, arguments: dict):
+    async with AsyncExitStack() as stack:
+        server_params = StdioServerParameters(
+            command=sys.executable,
+            args=[os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "trader-mcp", "server.py")]
+        )
+        transport = await stack.enter_async_context(stdio_client(server_params))
+        session = await stack.enter_async_context(ClientSession(transport[0], transport[1]))
+        await session.initialize()
+        result = await session.call_tool(tool_name, arguments=arguments)
+        return json.loads(result.content[0].text)
+
+
+
 # Ensure GOOGLE_API_KEY is set in environment for real usage
 # os.environ["GOOGLE_API_KEY"] = "YOUR_API_KEY"
 
@@ -19,36 +39,23 @@ class AgentState(TypedDict):
     trade_executed: bool
 
 # Agent 1: Market Data Gatherer (Mock)
-def gather_market_data(state: AgentState):
+async def gather_market_data(state: AgentState):
     asset = state.get("asset", "BTC")
-    # Mock data
-    market_data = {
-        "price": 50000.0,
-        "volume": 1200,
-        "trend": "up"
-    }
-    return {"market_data": market_data}
+    data = await call_mcp_tool("gather_market_data", {"asset": asset})
+    return {"market_data": data["market_data"]}
 
 # Agent 2: Sentiment Analyst (Mock)
-def analyze_sentiment(state: AgentState):
-    # Mock data
-    sentiment_data = {
-        "score": 0.8, # 0 to 1
-        "summary": "Bullish news on ETF approval."
-    }
-    return {"sentiment_data": sentiment_data}
+async def analyze_sentiment(state: AgentState):
+    data = await call_mcp_tool("analyze_sentiment", {})
+    return {"sentiment_data": data["sentiment_data"]}
 
 # Agent 3: Technical Analyst (Mock)
-def analyze_technicals(state: AgentState):
-    # Mock data
-    technical_data = {
-        "RSI": 65,
-        "MACD": "Bullish crossover"
-    }
-    return {"technical_data": technical_data}
+async def analyze_technicals(state: AgentState):
+    data = await call_mcp_tool("analyze_technicals", {})
+    return {"technical_data": data["technical_data"]}
 
 # Agent 4: Strategy/Decision Agent (Gemini)
-def formulate_strategy(state: AgentState):
+async def formulate_strategy(state: AgentState):
     llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro")
     
     prompt = f"""
@@ -66,7 +73,7 @@ def formulate_strategy(state: AgentState):
     """
     
     try:
-        response = llm.invoke([HumanMessage(content=prompt)])
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
         content = response.content
         
         # Simple parser
@@ -92,7 +99,7 @@ def formulate_strategy(state: AgentState):
         return {"strategy_decision": f"Error: {e}", "proposed_trade": {"action": "HOLD", "amount": 0, "asset": state.get("asset")}}
 
 # Agent 5: Risk Manager (Gemini)
-def evaluate_risk(state: AgentState):
+async def evaluate_risk(state: AgentState):
     proposed_trade = state.get("proposed_trade")
     if not proposed_trade or proposed_trade.get("action") == "HOLD":
         return {"risk_assessment": "No trade to evaluate.", "proposed_trade": proposed_trade}
@@ -109,7 +116,7 @@ def evaluate_risk(state: AgentState):
     REASONING: [Your reasoning]
     """
     try:
-        response = llm.invoke([HumanMessage(content=prompt)])
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
         content = response.content
         if "DECISION: REJECT" in content.upper():
             proposed_trade["action"] = "HOLD"
@@ -120,14 +127,13 @@ def evaluate_risk(state: AgentState):
         return {"risk_assessment": f"Error: {e}", "proposed_trade": proposed_trade}
 
 # Agent 6: Execution Agent
-def execute_trade(state: AgentState):
+async def execute_trade(state: AgentState):
     proposed_trade = state.get("proposed_trade")
-    if proposed_trade and proposed_trade.get("action") in ["BUY", "SELL"]:
-        # In a real system, call broker API here
-        trade_executed = True
-    else:
-        trade_executed = False
-    return {"trade_executed": trade_executed}
+    if not proposed_trade or proposed_trade.get("action") == "HOLD":
+        return {"trade_executed": False}
+
+    data = await call_mcp_tool("execute_trade", {"proposed_trade": proposed_trade})
+    return {"trade_executed": data.get("trade_executed", False)}
 
 
 # Build the Graph
