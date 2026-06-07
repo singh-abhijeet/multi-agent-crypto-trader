@@ -1,9 +1,11 @@
-from typing import TypedDict, Annotated, List
+from typing import TypedDict, Annotated, List, Optional
 from langgraph.graph import StateGraph, END
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.tools import tool
+from deepagents import create_deep_agent
+from pydantic import BaseModel, Field
 import os
-
 import json
 import sys
 from mcp import ClientSession
@@ -22,111 +24,180 @@ async def call_mcp_tool(tool_name: str, arguments: dict):
         result = await session.call_tool(tool_name, arguments=arguments)
         return json.loads(result.content[0].text)
 
-
-
-# Ensure GOOGLE_API_KEY is set in environment for real usage
-# os.environ["GOOGLE_API_KEY"] = "YOUR_API_KEY"
-
 # Define the state for the LangGraph
 class AgentState(TypedDict):
     asset: str
-    market_data: dict
-    sentiment_data: dict
-    technical_data: dict
-    strategy_decision: str
-    proposed_trade: dict
-    risk_assessment: str
-    trade_executed: bool
+    market_data: Optional[dict]
+    sentiment_data: Optional[dict]
+    technical_data: Optional[dict]
+    strategy_decision: Optional[str]
+    proposed_trade: Optional[dict]
+    risk_assessment: Optional[str]
+    trade_executed: Optional[bool]
 
-# Agent 1: Market Data Gatherer (Mock)
-async def gather_market_data(state: AgentState):
-    asset = state.get("asset", "BTC")
+# Tools
+@tool
+async def gather_market_data(asset: str) -> dict:
+    """Gathers market data for a specific asset (e.g. BTC)."""
     data = await call_mcp_tool("gather_market_data", {"asset": asset})
-    return {"market_data": data["market_data"]}
+    return data["market_data"]
 
-# Agent 2: Sentiment Analyst (Mock)
-async def analyze_sentiment(state: AgentState):
+@tool
+async def analyze_sentiment() -> dict:
+    """Analyzes market sentiment data."""
     data = await call_mcp_tool("analyze_sentiment", {})
-    return {"sentiment_data": data["sentiment_data"]}
+    return data["sentiment_data"]
 
-# Agent 3: Technical Analyst (Mock)
-async def analyze_technicals(state: AgentState):
+@tool
+async def analyze_technicals() -> dict:
+    """Analyzes technical indicators for the market."""
     data = await call_mcp_tool("analyze_technicals", {})
-    return {"technical_data": data["technical_data"]}
+    return data["technical_data"]
 
-# Agent 4: Strategy/Decision Agent (Gemini)
+class StrategyOutput(BaseModel):
+    action: str = Field(description="Trading action to take: BUY, SELL, or HOLD")
+    amount: float = Field(description="Amount to trade (0.0 to 1.0)")
+    reasoning: str = Field(description="Your reasoning for this action")
+
 async def formulate_strategy(state: AgentState):
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro")
-    
-    prompt = f"""
+    asset = state.get('asset', 'BTC')
+    system_prompt = f"""
     You are an expert Crypto Trading Strategist.
-    Asset: {state.get('asset')}
-    Market Data: {state.get('market_data')}
-    Sentiment: {state.get('sentiment_data')}
-    Technicals: {state.get('technical_data')}
+    Your task is to analyze the market for the asset: {asset}.
+    You MUST use your tools to gather market data, sentiment, and technicals.
     
-    Based on this data, propose a trading action (BUY, SELL, HOLD), the amount (0 to 1), and a brief reasoning.
-    Format your response as:
-    ACTION: [BUY/SELL/HOLD]
-    AMOUNT: [0.0-1.0]
-    REASONING: [Your reasoning]
+    Based on the data you gather, propose a trading action (BUY, SELL, HOLD), the amount (0 to 1), and a brief reasoning.
+    Provide your output strictly matching the required schema.
     """
     
+    agent = create_deep_agent(
+        model="google:gemini-1.5-pro",
+        tools=[gather_market_data, analyze_sentiment, analyze_technicals],
+        system_prompt=system_prompt,
+    )
+
+    # We ask the agent to formulate the strategy and return JSON
     try:
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
-        content = response.content
+        # Ask for structured output using the model's native capability or parsing.
+        # Apply the inner 4-iteration limit directly to the agent's invoke call
+        result = await agent.ainvoke(
+            {"messages": [HumanMessage(content="Gather data and output your strategy decision as a JSON object matching the StrategyOutput schema: {\"action\": \"...\", \"amount\": ...., \"reasoning\": \"...\"}")]},
+            {"recursion_limit": 4}
+        )
+
+        final_message = result["messages"][-1].content
         
-        # Simple parser
-        lines = content.split('\n')
-        action = "HOLD"
-        amount = 0.0
-        for line in lines:
-            if line.startswith("ACTION:"):
-                action = line.split(":")[1].strip()
-            elif line.startswith("AMOUNT:"):
-                try:
-                    amount = float(line.split(":")[1].strip())
-                except:
-                    pass
+        # Extract the gathered data from the message history to populate the outer state
+        market_data = None
+        sentiment_data = None
+        technical_data = None
         
+        for msg in result.get("messages", []):
+            if isinstance(msg, ToolMessage):
+                if msg.name == "gather_market_data":
+                    try:
+                        market_data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                    except:
+                        pass
+                elif msg.name == "analyze_sentiment":
+                    try:
+                        sentiment_data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                    except:
+                        pass
+                elif msg.name == "analyze_technicals":
+                    try:
+                        technical_data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                    except:
+                        pass
+
+        # Try to parse as JSON or look for the fields
+        try:
+            # strip markdown blocks if present
+            if "```json" in final_message:
+                json_str = final_message.split("```json")[1].split("```")[0].strip()
+            elif "```" in final_message:
+                json_str = final_message.split("```")[1].split("```")[0].strip()
+            else:
+                json_str = final_message
+            parsed = json.loads(json_str)
+            action = parsed.get("action", "HOLD")
+            amount = float(parsed.get("amount", 0.0))
+            reasoning = parsed.get("reasoning", "")
+        except:
+            # Fallback
+            action = "HOLD"
+            amount = 0.0
+            reasoning = final_message
+
         proposed_trade = {
             "action": action,
             "amount": amount,
-            "asset": state.get("asset")
+            "asset": asset
         }
-        return {"strategy_decision": content, "proposed_trade": proposed_trade}
-    except Exception as e:
-        return {"strategy_decision": f"Error: {e}", "proposed_trade": {"action": "HOLD", "amount": 0, "asset": state.get("asset")}}
 
-# Agent 5: Risk Manager (Gemini)
+        # Populate outer state
+        return {
+            "strategy_decision": reasoning,
+            "proposed_trade": proposed_trade,
+            "market_data": market_data,
+            "sentiment_data": sentiment_data,
+            "technical_data": technical_data
+        }
+    except Exception as e:
+         return {"strategy_decision": f"Error: {e}", "proposed_trade": {"action": "HOLD", "amount": 0.0, "asset": asset}}
+
+
 async def evaluate_risk(state: AgentState):
     proposed_trade = state.get("proposed_trade")
     if not proposed_trade or proposed_trade.get("action") == "HOLD":
         return {"risk_assessment": "No trade to evaluate.", "proposed_trade": proposed_trade}
         
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro")
-    prompt = f"""
+    system_prompt = f"""
     You are a strict Risk Manager. Evaluate this proposed trade:
     Trade: {proposed_trade}
     Market Context: {state.get('market_data')}
     
+    You can use tools to gather more market context if you need to.
     Approve or reject the trade based on standard risk management principles.
-    Format your response as:
-    DECISION: [APPROVE/REJECT]
-    REASONING: [Your reasoning]
     """
+
+    agent = create_deep_agent(
+        model="google:gemini-1.5-pro",
+        tools=[gather_market_data, analyze_sentiment, analyze_technicals],
+        system_prompt=system_prompt,
+    )
+
     try:
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
-        content = response.content
-        if "DECISION: REJECT" in content.upper():
+        # Apply the inner 4-iteration limit directly to the agent's invoke call
+        result = await agent.ainvoke(
+            {"messages": [HumanMessage(content="Evaluate the risk and output your decision as JSON: {\"decision\": \"APPROVE\" or \"REJECT\", \"reasoning\": \"...\"}")]},
+            {"recursion_limit": 4}
+        )
+        final_message = result["messages"][-1].content
+
+        try:
+            if "```json" in final_message:
+                json_str = final_message.split("```json")[1].split("```")[0].strip()
+            elif "```" in final_message:
+                json_str = final_message.split("```")[1].split("```")[0].strip()
+            else:
+                json_str = final_message
+            parsed = json.loads(json_str)
+            decision = parsed.get("decision", "REJECT").upper()
+            reasoning = parsed.get("reasoning", final_message)
+        except:
+             decision = "REJECT" if "REJECT" in final_message.upper() else "APPROVE"
+             reasoning = final_message
+
+        if decision == "REJECT":
             proposed_trade["action"] = "HOLD"
             proposed_trade["amount"] = 0.0
-        return {"risk_assessment": content, "proposed_trade": proposed_trade}
+        return {"risk_assessment": reasoning, "proposed_trade": proposed_trade}
     except Exception as e:
         proposed_trade["action"] = "HOLD"
         return {"risk_assessment": f"Error: {e}", "proposed_trade": proposed_trade}
 
-# Agent 6: Execution Agent
+# Agent 6: Execution Agent (Remains same, just a simple function)
 async def execute_trade(state: AgentState):
     proposed_trade = state.get("proposed_trade")
     if not proposed_trade or proposed_trade.get("action") == "HOLD":
@@ -135,24 +206,17 @@ async def execute_trade(state: AgentState):
     data = await call_mcp_tool("execute_trade", {"proposed_trade": proposed_trade})
     return {"trade_executed": data.get("trade_executed", False)}
 
-
 # Build the Graph
 def build_trading_graph():
     workflow = StateGraph(AgentState)
     
     # Add nodes
-    workflow.add_node("gather_market_data", gather_market_data)
-    workflow.add_node("analyze_sentiment", analyze_sentiment)
-    workflow.add_node("analyze_technicals", analyze_technicals)
     workflow.add_node("formulate_strategy", formulate_strategy)
     workflow.add_node("evaluate_risk", evaluate_risk)
     workflow.add_node("execute_trade", execute_trade)
     
-    # Define edges (parallel data gathering, then sequential)
-    workflow.set_entry_point("gather_market_data")
-    workflow.add_edge("gather_market_data", "analyze_sentiment")
-    workflow.add_edge("analyze_sentiment", "analyze_technicals")
-    workflow.add_edge("analyze_technicals", "formulate_strategy")
+    # Define edges (sequential)
+    workflow.set_entry_point("formulate_strategy")
     workflow.add_edge("formulate_strategy", "evaluate_risk")
     workflow.add_edge("evaluate_risk", "execute_trade")
     workflow.add_edge("execute_trade", END)
@@ -160,4 +224,3 @@ def build_trading_graph():
     return workflow.compile()
 
 trading_graph = build_trading_graph()
-
