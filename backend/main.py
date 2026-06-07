@@ -128,7 +128,7 @@ async def trigger_cycle(req: TriggerCycleRequest):
     
     # Run the LangGraph
     try:
-        final_state = trading_graph.invoke(initial_state)
+        final_state = await trading_graph.ainvoke(initial_state)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -152,12 +152,17 @@ async def trigger_cycle(req: TriggerCycleRequest):
     
     # If trade was executed, record it and update portfolio
     if final_state.get("trade_executed"):
-        proposed = final_state["proposed_trade"]
+        proposed = final_state.get("proposed_trade", {})
+
+        # safely extract price or default to 0.0 if not found
+        market_data = final_state.get("market_data") or {}
+        price = market_data.get("price", 0.0)
+
         trade = {
-            "asset": proposed["asset"],
-            "action": proposed["action"],
-            "amount": proposed["amount"],
-            "price": final_state["market_data"]["price"],
+            "asset": proposed.get("asset", req.asset),
+            "action": proposed.get("action", "HOLD"),
+            "amount": proposed.get("amount", 0.0),
+            "price": price,
             "timestamp": datetime.now(),
             "strategy_decision": final_state.get("strategy_decision"),
             "risk_assessment": final_state.get("risk_assessment")
