@@ -1,5 +1,6 @@
 from typing import TypedDict, Annotated, List, Optional
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, END, add_messages
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
@@ -34,6 +35,7 @@ class AgentState(TypedDict):
     proposed_trade: Optional[dict]
     risk_assessment: Optional[str]
     trade_executed: Optional[bool]
+    messages: Annotated[list, add_messages]
 
 # Tools
 @tool
@@ -71,7 +73,7 @@ async def formulate_strategy(state: AgentState):
     """
     
     agent = create_deep_agent(
-        model="google:gemini-1.5-pro",
+        model="google_genai:gemini-1.5-pro",
         tools=[gather_market_data, analyze_sentiment, analyze_technicals],
         system_prompt=system_prompt,
     )
@@ -162,7 +164,7 @@ async def evaluate_risk(state: AgentState):
     """
 
     agent = create_deep_agent(
-        model="google:gemini-1.5-pro",
+        model="google_genai:gemini-1.5-pro",
         tools=[gather_market_data, analyze_sentiment, analyze_technicals],
         system_prompt=system_prompt,
     )
@@ -197,30 +199,86 @@ async def evaluate_risk(state: AgentState):
         proposed_trade["action"] = "HOLD"
         return {"risk_assessment": f"Error: {e}", "proposed_trade": proposed_trade}
 
-# Agent 6: Execution Agent (Remains same, just a simple function)
-async def execute_trade(state: AgentState):
+checkpointer = MemorySaver()
+
+@tool
+async def perform_trade(proposed_trade: dict) -> dict:
+    """Executes a trade via the MCP tool. Call this tool to perform the execution."""
+    data = await call_mcp_tool("execute_trade", {"proposed_trade": proposed_trade})
+    return data
+
+execution_system_prompt = """
+You are an Execution Agent. Your only job is to execute the trade that has been proposed.
+You MUST call the `perform_trade` tool with the proposed trade details you receive in the user message.
+After executing the trade, return the trade_executed status from the tool.
+"""
+
+execution_agent = create_deep_agent(
+    model="google_genai:gemini-1.5-pro",
+    tools=[perform_trade],
+    system_prompt=execution_system_prompt,
+    interrupt_on={"perform_trade": True},
+    checkpointer=checkpointer
+)
+
+def format_trade_request(state: AgentState):
     proposed_trade = state.get("proposed_trade")
     if not proposed_trade or proposed_trade.get("action") == "HOLD":
         return {"trade_executed": False}
 
-    data = await call_mcp_tool("execute_trade", {"proposed_trade": proposed_trade})
-    return {"trade_executed": data.get("trade_executed", False)}
+    return {
+        "messages": [HumanMessage(content=f"Execute the proposed trade: {proposed_trade}")]
+    }
 
-# Build the Graph
+def extract_trade_result(state: AgentState):
+    trade_executed = False
+
+    if not state.get("proposed_trade") or state.get("proposed_trade").get("action") == "HOLD":
+         return {"trade_executed": False}
+
+    for msg in state.get("messages", []):
+        if isinstance(msg, ToolMessage) and msg.name == "perform_trade":
+            try:
+                data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                trade_executed = data.get("trade_executed", False)
+            except:
+                pass
+
+    return {"trade_executed": trade_executed}
+
+def should_execute_trade(state: AgentState) -> str:
+    proposed_trade = state.get("proposed_trade")
+    if not proposed_trade or proposed_trade.get("action") == "HOLD":
+        return "extract_trade_result"
+    return "execute_trade"
+
 def build_trading_graph():
     workflow = StateGraph(AgentState)
     
     # Add nodes
     workflow.add_node("formulate_strategy", formulate_strategy)
     workflow.add_node("evaluate_risk", evaluate_risk)
-    workflow.add_node("execute_trade", execute_trade)
+    workflow.add_node("format_trade_request", format_trade_request)
+    workflow.add_node("execute_trade", execution_agent)
+    workflow.add_node("extract_trade_result", extract_trade_result)
     
-    # Define edges (sequential)
+    # Define edges
     workflow.set_entry_point("formulate_strategy")
     workflow.add_edge("formulate_strategy", "evaluate_risk")
-    workflow.add_edge("evaluate_risk", "execute_trade")
-    workflow.add_edge("execute_trade", END)
+    workflow.add_edge("evaluate_risk", "format_trade_request")
+
+    workflow.add_conditional_edges(
+        "format_trade_request",
+        should_execute_trade,
+        {
+            "execute_trade": "execute_trade",
+            "extract_trade_result": "extract_trade_result"
+        }
+    )
+
+    workflow.add_edge("execute_trade", "extract_trade_result")
+    workflow.add_edge("extract_trade_result", END)
     
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)
 
 trading_graph = build_trading_graph()
