@@ -152,28 +152,108 @@ async def evaluate_risk(state: AgentState):
     if not proposed_trade or proposed_trade.get("action") == "HOLD":
         return {"risk_assessment": "No trade to evaluate.", "proposed_trade": proposed_trade}
         
-    system_prompt = f"""
-    You are a strict Risk Manager. Evaluate this proposed trade:
-    Trade: {proposed_trade}
-    Market Context: {state.get('market_data')}
+    market_data = state.get('market_data')
+    sentiment_data = state.get('sentiment_data')
+    technical_data = state.get('technical_data')
+    strategy_decision = state.get('strategy_decision')
     
-    You can use tools to gather more market context if you need to.
-    Approve or reject the trade based on standard risk management principles.
+    context = f"""
+    Proposed Trade: {proposed_trade}
+    Strategy Reasoning: {strategy_decision}
+    Market Context: {market_data}
+    Sentiment Data: {sentiment_data}
+    Technical Data: {technical_data}
     """
 
-    agent = create_deep_agent(
+    bull_system_prompt = f"""
+    You are a Bullish Researcher. Your goal is to advocate for the proposed trade.
+    Focus on the positive indicators, growth potential, and favorable market conditions.
+    Construct arguments supporting the initiation or continuation of the position.
+
+    Data Context:
+    {context}
+    """
+
+    bear_system_prompt = f"""
+    You are a Bearish Researcher. Your goal is to focus strictly on potential downsides, liquidity traps, and market volatility.
+    Provide cautionary insights, questioning the viability of the proposed trade and highlighting possible negative outcomes.
+
+    Data Context:
+    {context}
+    """
+
+    bull_agent = create_deep_agent(
         model="google:gemini-1.5-pro",
-        tools=[gather_market_data, analyze_sentiment, analyze_technicals],
-        system_prompt=system_prompt,
+        tools=[],
+        system_prompt=bull_system_prompt,
+    )
+
+    bear_agent = create_deep_agent(
+        model="google:gemini-1.5-pro",
+        tools=[],
+        system_prompt=bear_system_prompt,
+    )
+
+    debate_history = []
+
+    # Max 3 rounds of debate
+    for round_num in range(3):
+        # Bull Turn
+        bull_prompt = "Make your case for why this trade is a good idea."
+        if debate_history:
+            bull_prompt = f"The Bear said: '{debate_history[-1]}'. Respond to this and make your case for why this trade is a good idea."
+
+        try:
+            bull_result = await bull_agent.ainvoke(
+                {"messages": [HumanMessage(content=bull_prompt)]},
+                {"recursion_limit": 4}
+            )
+            bull_message = bull_result["messages"][-1].content
+            debate_history.append(f"Bull: {bull_message}")
+        except Exception as e:
+            debate_history.append(f"Bull failed to respond: {e}")
+            break
+
+        # Bear Turn
+        bear_prompt = f"The Bull said: '{bull_message}'. Respond to this and make your case for why this trade is a bad idea or too risky."
+        try:
+            bear_result = await bear_agent.ainvoke(
+                {"messages": [HumanMessage(content=bear_prompt)]},
+                {"recursion_limit": 4}
+            )
+            bear_message = bear_result["messages"][-1].content
+            debate_history.append(f"Bear: {bear_message}")
+        except Exception as e:
+            debate_history.append(f"Bear failed to respond: {e}")
+            break
+
+    debate_transcript = "\\n\\n".join(debate_history)
+
+    risk_manager_system_prompt = f"""
+    You are a strict Risk Manager. Your task is to make a final decision on the proposed trade by reviewing the debate between the Bull and Bear researchers.
+
+    Data Context:
+    {context}
+
+    Debate Transcript:
+    {debate_transcript}
+
+    Approve or reject the trade based on standard risk management principles. You should output your decision as JSON.
+    """
+
+    risk_manager_agent = create_deep_agent(
+        model="google:gemini-1.5-pro",
+        tools=[],
+        system_prompt=risk_manager_system_prompt,
     )
 
     try:
         # Apply the inner 4-iteration limit directly to the agent's invoke call
-        result = await agent.ainvoke(
-            {"messages": [HumanMessage(content="Evaluate the risk and output your decision as JSON: {\"decision\": \"APPROVE\" or \"REJECT\", \"reasoning\": \"...\"}")]},
+        rm_result = await risk_manager_agent.ainvoke(
+            {"messages": [HumanMessage(content="Evaluate the risk based on the debate and output your decision as JSON: {\"decision\": \"APPROVE\" or \"REJECT\", \"reasoning\": \"...\"}")]},
             {"recursion_limit": 4}
         )
-        final_message = result["messages"][-1].content
+        final_message = rm_result["messages"][-1].content
 
         try:
             if "```json" in final_message:
