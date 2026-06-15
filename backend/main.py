@@ -83,6 +83,10 @@ class Portfolio(BaseModel):
 class TriggerCycleRequest(BaseModel):
     asset: str
 
+class ResumeTradeRequest(BaseModel):
+    thread_id: str
+    decision: str  # "approve" or "reject"
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Crypto Trading System API"}
@@ -122,16 +126,32 @@ async def get_logs():
         logs.append(document)
     return logs
 
+import uuid
+from langgraph.types import Command
+
 @app.post("/api/trigger_cycle")
 async def trigger_cycle(req: TriggerCycleRequest):
     initial_state = {"asset": req.asset}
+    thread_id = str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
     
     # Run the LangGraph
     try:
-        final_state = await trading_graph.ainvoke(initial_state)
+        final_state = await trading_graph.ainvoke(initial_state, config=config)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+    state_snapshot = await trading_graph.aget_state(config)
+    pending_tasks = state_snapshot.next
+
+    if pending_tasks:
+        return {
+            "status": "Request accepted",
+            "message": "Processing",
+            "thread_id": thread_id,
+            "proposed_trade": final_state.get("proposed_trade")
+        }
+
     # Save the execution log
     log_entry = {
         "timestamp": datetime.now(),
@@ -198,7 +218,109 @@ async def trigger_cycle(req: TriggerCycleRequest):
 
     # Return safe subset of state to frontend
     return {
-        "status": "success",
+        "status": "Request completed",
+        "trade_executed": final_state.get("trade_executed"),
+        "proposed_trade": final_state.get("proposed_trade")
+    }
+
+@app.post("/api/resume_trade")
+async def resume_trade(req: ResumeTradeRequest):
+    config = {"configurable": {"thread_id": req.thread_id}}
+
+    # Check if there are pending tasks for this thread
+    state_snapshot = await trading_graph.aget_state(config)
+    pending_tasks = state_snapshot.next
+
+    if not pending_tasks:
+        raise HTTPException(status_code=400, detail="No pending tasks for this thread.")
+
+    try:
+        # Resume the graph with the human's decision
+        decisions = [{"type": req.decision}]
+        if req.decision == "reject":
+            decisions[0]["message"] = "Trade rejected by human."
+
+        final_state = await trading_graph.ainvoke(
+            Command(resume={"decisions": decisions}),
+            config=config
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Check if still pending (should not be, but just in case)
+    state_snapshot = await trading_graph.aget_state(config)
+    if state_snapshot.next:
+         return {
+            "status": "Request accepted",
+            "message": "Processing",
+            "thread_id": req.thread_id,
+            "proposed_trade": final_state.get("proposed_trade")
+        }
+
+    # Save the execution log
+    log_entry = {
+        "timestamp": datetime.now(),
+        "asset": final_state.get("asset", "UNKNOWN"),
+        "market_data": final_state.get("market_data"),
+        "sentiment_data": final_state.get("sentiment_data"),
+        "technical_data": final_state.get("technical_data"),
+        "strategy_decision": final_state.get("strategy_decision"),
+        "risk_assessment": final_state.get("risk_assessment"),
+        "proposed_trade": final_state.get("proposed_trade"),
+        "trade_executed": final_state.get("trade_executed")
+    }
+
+    global use_mock_db
+    if use_mock_db:
+        mock_db["logs"].append(log_entry)
+    else:
+        await logs_collection.insert_one(log_entry)
+
+    # If trade was executed, record it and update portfolio
+    if final_state.get("trade_executed"):
+        proposed = final_state.get("proposed_trade", {})
+
+        market_data = final_state.get("market_data") or {}
+        price = market_data.get("price", 0.0)
+
+        trade = {
+            "asset": proposed.get("asset", final_state.get("asset", "UNKNOWN")),
+            "action": proposed.get("action", "HOLD"),
+            "amount": proposed.get("amount", 0.0),
+            "price": price,
+            "timestamp": datetime.now(),
+            "strategy_decision": final_state.get("strategy_decision"),
+            "risk_assessment": final_state.get("risk_assessment")
+        }
+
+        if use_mock_db:
+            mock_db["trades"].append(trade)
+            cost = trade["amount"] * trade["price"]
+            if trade["action"] == "BUY":
+                mock_db["portfolio"]["cash"] -= cost
+                mock_db["portfolio"]["holdings"][trade["asset"]] = mock_db["portfolio"]["holdings"].get(trade["asset"], 0) + trade["amount"]
+            elif trade["action"] == "SELL":
+                mock_db["portfolio"]["cash"] += cost
+                mock_db["portfolio"]["holdings"][trade["asset"]] = max(0, mock_db["portfolio"]["holdings"].get(trade["asset"], 0) - trade["amount"])
+        else:
+            await trade_collection.insert_one(trade)
+            portfolio = await portfolio_collection.find_one({"_id": "mock_portfolio"})
+            if portfolio:
+                cost = trade["amount"] * trade["price"]
+                if trade["action"] == "BUY":
+                    portfolio["cash"] -= cost
+                    portfolio["holdings"][trade["asset"]] = portfolio["holdings"].get(trade["asset"], 0) + trade["amount"]
+                elif trade["action"] == "SELL":
+                    portfolio["cash"] += cost
+                    portfolio["holdings"][trade["asset"]] = max(0, portfolio["holdings"].get(trade["asset"], 0) - trade["amount"])
+
+                await portfolio_collection.update_one(
+                    {"_id": "mock_portfolio"},
+                    {"$set": {"cash": portfolio["cash"], "holdings": portfolio["holdings"]}}
+                )
+
+    return {
+        "status": "Request completed",
         "trade_executed": final_state.get("trade_executed"),
         "proposed_trade": final_state.get("proposed_trade")
     }
