@@ -9,13 +9,30 @@
     {{ isProcessing ? 'Agents are analyzing...' : 'Trigger Multi-Agent Cycle' }}
   </button>
 
-  <div *ngIf="lastResult" class="result" [class.success]="lastResult.trade_executed">
+  <!-- HITL Pending Approval Banner -->
+  <div *ngIf="lastResult && lastResult.status === 'awaiting_approval'" class="approval-banner">
+    <h4>Human-in-the-Loop Approval Required</h4>
+    <p>{{ lastResult.message }}</p>
+    <p><strong>Proposed Trade:</strong> {{ lastResult.proposed_trade?.action }} {{ lastResult.proposed_trade?.amount }} {{ lastResult.proposed_trade?.asset }}</p>
+    <div class="approval-buttons">
+      <button class="approve-btn" (click)="resolveApproval(true)" [disabled]="isApproving">
+        {{ isApproving ? 'Executing...' : 'Approve & Execute Trade' }}
+      </button>
+      <button class="reject-btn" (click)="resolveApproval(false)" [disabled]="isApproving">
+        {{ isApproving ? 'Updating...' : 'Reject Trade' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="lastResult && lastResult.status === 'success'" class="result" [class.success]="lastResult.trade_executed">
     <p><strong>Cycle Complete!</strong></p>
     <p *ngIf="lastResult.trade_executed">
       Action taken: {{ lastResult.proposed_trade?.action }} {{ lastResult.proposed_trade?.amount }} {{ lastResult.proposed_trade?.asset }}
+      <span *ngIf="lastResult.human_decision"> (HITL: {{ lastResult.human_decision }})</span>
     </p>
-    <p *ngIf="!lastResult.trade_executed && lastResult.status === 'success'">
-      Action taken: Agents decided to HOLD / Reject Trade.
+    <p *ngIf="!lastResult.trade_executed">
+      Action taken: Agents decided to HOLD / Trade Rejected.
+      <span *ngIf="lastResult.human_decision"> (HITL: {{ lastResult.human_decision }})</span>
     </p>
   </div>
 </div>

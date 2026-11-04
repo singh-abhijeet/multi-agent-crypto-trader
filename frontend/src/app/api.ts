@@ -22,8 +22,21 @@ export class ApiService {
     return res.data;
   }
 
+  async getPendingApprovals() {
+    const res = await axios.get(`${this.baseUrl}/pending_approvals`);
+    return res.data;
+  }
+
   async triggerCycle(asset: string) {
     const res = await axios.post(`${this.baseUrl}/trigger_cycle`, { asset });
+    return res.data;
+  }
+
+  async approveTrade(threadId: string, approved: boolean) {
+    const res = await axios.post(`${this.baseUrl}/approve_trade`, {
+      thread_id: threadId,
+      approved
+    });
     return res.data;
   }
 }

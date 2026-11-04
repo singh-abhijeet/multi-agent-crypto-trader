@@ -1,5 +1,6 @@
 from typing import TypedDict, Annotated, List, Optional
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
@@ -32,8 +33,14 @@ class AgentState(TypedDict):
     technical_data: Optional[dict]
     strategy_decision: Optional[str]
     proposed_trade: Optional[dict]
+    debate_history: Optional[List[str]]
+    debate_transcript: Optional[str]
+    debate_round: Optional[int]
+    debate_status: Optional[str]  # "ongoing", "concluded", "skipped"
     risk_assessment: Optional[str]
+    risk_decision: Optional[str]  # "APPROVE" or "REJECT"
     trade_executed: Optional[bool]
+    rejection_reason: Optional[str]
 
 # Tools
 @tool
@@ -71,15 +78,12 @@ async def formulate_strategy(state: AgentState):
     """
     
     agent = create_deep_agent(
-        model="google:gemini-1.5-pro",
+        model="google_genai:gemini-1.5-pro",
         tools=[gather_market_data, analyze_sentiment, analyze_technicals],
         system_prompt=system_prompt,
     )
 
-    # We ask the agent to formulate the strategy and return JSON
     try:
-        # Ask for structured output using the model's native capability or parsing.
-        # Apply the inner 4-iteration limit directly to the agent's invoke call
         result = await agent.ainvoke(
             {"messages": [HumanMessage(content="Gather data and output your strategy decision as a JSON object matching the StrategyOutput schema: {\"action\": \"...\", \"amount\": ...., \"reasoning\": \"...\"}")]},
             {"recursion_limit": 4}
@@ -87,7 +91,6 @@ async def formulate_strategy(state: AgentState):
 
         final_message = result["messages"][-1].content
         
-        # Extract the gathered data from the message history to populate the outer state
         market_data = None
         sentiment_data = None
         technical_data = None
@@ -110,9 +113,7 @@ async def formulate_strategy(state: AgentState):
                     except:
                         pass
 
-        # Try to parse as JSON or look for the fields
         try:
-            # strip markdown blocks if present
             if "```json" in final_message:
                 json_str = final_message.split("```json")[1].split("```")[0].strip()
             elif "```" in final_message:
@@ -124,7 +125,6 @@ async def formulate_strategy(state: AgentState):
             amount = float(parsed.get("amount", 0.0))
             reasoning = parsed.get("reasoning", "")
         except:
-            # Fallback
             action = "HOLD"
             amount = 0.0
             reasoning = final_message
@@ -135,29 +135,45 @@ async def formulate_strategy(state: AgentState):
             "asset": asset
         }
 
-        # Populate outer state
         return {
             "strategy_decision": reasoning,
             "proposed_trade": proposed_trade,
             "market_data": market_data,
             "sentiment_data": sentiment_data,
-            "technical_data": technical_data
+            "technical_data": technical_data,
+            "debate_history": [],
+            "debate_transcript": "",
+            "debate_round": 0,
+            "debate_status": "ongoing" if action in ["BUY", "SELL"] else "skipped"
         }
     except Exception as e:
-         return {"strategy_decision": f"Error: {e}", "proposed_trade": {"action": "HOLD", "amount": 0.0, "asset": asset}}
+        return {
+            "strategy_decision": f"Error: {e}",
+            "proposed_trade": {"action": "HOLD", "amount": 0.0, "asset": asset},
+            "debate_history": [],
+            "debate_transcript": "",
+            "debate_round": 0,
+            "debate_status": "skipped"
+        }
 
-
-async def evaluate_risk(state: AgentState):
+def should_start_debate(state: AgentState):
     proposed_trade = state.get("proposed_trade")
     if not proposed_trade or proposed_trade.get("action") == "HOLD":
-        return {"risk_assessment": "No trade to evaluate.", "proposed_trade": proposed_trade}
-        
-    market_data = state.get('market_data')
-    sentiment_data = state.get('sentiment_data')
-    technical_data = state.get('technical_data')
-    strategy_decision = state.get('strategy_decision')
-    
+        return "risk_manager"
+    return "bull_agent"
+
+async def bull_agent_node(state: AgentState):
+    asset = state.get("asset", "BTC")
+    proposed_trade = state.get("proposed_trade")
+    market_data = state.get("market_data")
+    sentiment_data = state.get("sentiment_data")
+    technical_data = state.get("technical_data")
+    strategy_decision = state.get("strategy_decision")
+    debate_history = list(state.get("debate_history") or [])
+    round_num = (state.get("debate_round") or 0) + 1
+
     context = f"""
+    Asset: {asset}
     Proposed Trade: {proposed_trade}
     Strategy Reasoning: {strategy_decision}
     Market Context: {market_data}
@@ -165,92 +181,217 @@ async def evaluate_risk(state: AgentState):
     Technical Data: {technical_data}
     """
 
-    bull_system_prompt = f"""
-    You are a Bullish Researcher. Your goal is to advocate for the proposed trade.
-    Focus on the positive indicators, growth potential, and favorable market conditions.
-    Construct arguments supporting the initiation or continuation of the position.
+    system_prompt = f"""
+    You are a Bullish Researcher. Your goal is to advocate for executing the proposed trade.
+    Focus on positive market trends, upside potential, and favorable conditions.
+    You have access to the tool 'gather_market_data' to inspect real-time market data to support your claims.
 
     Data Context:
     {context}
     """
 
-    bear_system_prompt = f"""
-    You are a Bearish Researcher. Your goal is to focus strictly on potential downsides, liquidity traps, and market volatility.
-    Provide cautionary insights, questioning the viability of the proposed trade and highlighting possible negative outcomes.
-
-    Data Context:
-    {context}
-    """
-
-    bull_agent = create_deep_agent(
-        model="google:gemini-1.5-pro",
-        tools=[],
-        system_prompt=bull_system_prompt,
+    agent = create_deep_agent(
+        model="google_genai:gemini-1.5-pro",
+        tools=[gather_market_data],
+        system_prompt=system_prompt,
     )
 
-    bear_agent = create_deep_agent(
-        model="google:gemini-1.5-pro",
-        tools=[],
-        system_prompt=bear_system_prompt,
-    )
+    if not debate_history:
+        bull_prompt = (
+            f"Round {round_num}: Present your opening argument for why this proposed trade is sound and advantageous. "
+            f"Use the gather_market_data tool if you need live verification."
+        )
+    else:
+        last_bear_msg = debate_history[-1]
+        bull_prompt = (
+            f"Round {round_num}: The Bear researcher argued:\n'{last_bear_msg}'\n\n"
+            f"Rebut the Bear's concerns and reaffirm the case for the proposed trade. "
+            f"You may verify with gather_market_data tool if needed."
+        )
 
-    debate_history = []
+    try:
+        result = await agent.ainvoke(
+            {"messages": [HumanMessage(content=bull_prompt)]},
+            {"recursion_limit": 4}
+        )
+        bull_message = result["messages"][-1].content
+    except Exception as e:
+        bull_message = f"Bull argument unavailable due to error: {e}"
 
-    # Max 3 rounds of debate
-    for round_num in range(3):
-        # Bull Turn
-        bull_prompt = "Make your case for why this trade is a good idea."
-        if debate_history:
-            bull_prompt = f"The Bear said: '{debate_history[-1]}'. Respond to this and make your case for why this trade is a good idea."
+    debate_history.append(f"Round {round_num} [Bull]: {bull_message}")
 
-        try:
-            bull_result = await bull_agent.ainvoke(
-                {"messages": [HumanMessage(content=bull_prompt)]},
-                {"recursion_limit": 4}
-            )
-            bull_message = bull_result["messages"][-1].content
-            debate_history.append(f"Bull: {bull_message}")
-        except Exception as e:
-            debate_history.append(f"Bull failed to respond: {e}")
-            break
+    return {
+        "debate_history": debate_history,
+        "debate_round": round_num,
+        "debate_transcript": "\n\n".join(debate_history)
+    }
 
-        # Bear Turn
-        bear_prompt = f"The Bull said: '{bull_message}'. Respond to this and make your case for why this trade is a bad idea or too risky."
-        try:
-            bear_result = await bear_agent.ainvoke(
-                {"messages": [HumanMessage(content=bear_prompt)]},
-                {"recursion_limit": 4}
-            )
-            bear_message = bear_result["messages"][-1].content
-            debate_history.append(f"Bear: {bear_message}")
-        except Exception as e:
-            debate_history.append(f"Bear failed to respond: {e}")
-            break
+async def bear_agent_node(state: AgentState):
+    asset = state.get("asset", "BTC")
+    proposed_trade = state.get("proposed_trade")
+    market_data = state.get("market_data")
+    sentiment_data = state.get("sentiment_data")
+    technical_data = state.get("technical_data")
+    strategy_decision = state.get("strategy_decision")
+    debate_history = list(state.get("debate_history") or [])
+    round_num = state.get("debate_round") or 1
 
-    debate_transcript = "\\n\\n".join(debate_history)
+    context = f"""
+    Asset: {asset}
+    Proposed Trade: {proposed_trade}
+    Strategy Reasoning: {strategy_decision}
+    Market Context: {market_data}
+    Sentiment Data: {sentiment_data}
+    Technical Data: {technical_data}
+    """
 
-    risk_manager_system_prompt = f"""
-    You are a strict Risk Manager. Your task is to make a final decision on the proposed trade by reviewing the debate between the Bull and Bear researchers.
+    system_prompt = f"""
+    You are a Bearish Researcher. Your goal is to critically examine the risks of the proposed trade.
+    Focus on potential drawdowns, liquidity traps, volatility, and downside risk.
+    You have access to the tool 'gather_market_data' to check real-time asset data to validate your concerns.
 
     Data Context:
     {context}
-
-    Debate Transcript:
-    {debate_transcript}
-
-    Approve or reject the trade based on standard risk management principles. You should output your decision as JSON.
     """
 
-    risk_manager_agent = create_deep_agent(
+    agent = create_deep_agent(
         model="google:gemini-1.5-pro",
-        tools=[],
-        system_prompt=risk_manager_system_prompt,
+        tools=[gather_market_data],
+        system_prompt=system_prompt,
+    )
+
+    last_bull_msg = debate_history[-1] if debate_history else "No bull statement."
+    bear_prompt = (
+        f"Round {round_num}: The Bull researcher argued:\n'{last_bull_msg}'\n\n"
+        f"Respond critically, highlight overlooked risks, and counter the Bull's stance. "
+        f"You may check live market metrics using gather_market_data."
     )
 
     try:
-        # Apply the inner 4-iteration limit directly to the agent's invoke call
+        result = await agent.ainvoke(
+            {"messages": [HumanMessage(content=bear_prompt)]},
+            {"recursion_limit": 4}
+        )
+        bear_message = result["messages"][-1].content
+    except Exception as e:
+        bear_message = f"Bear argument unavailable due to error: {e}"
+
+    debate_history.append(f"Round {round_num} [Bear]: {bear_message}")
+
+    return {
+        "debate_history": debate_history,
+        "debate_transcript": "\n\n".join(debate_history)
+    }
+
+async def debate_judge_node(state: AgentState):
+    round_num = state.get("debate_round") or 1
+    max_rounds = 3
+
+    # If reached max rounds, conclude debate
+    if round_num >= max_rounds:
+        return {"debate_status": "concluded"}
+
+    debate_transcript = state.get("debate_transcript", "")
+    proposed_trade = state.get("proposed_trade")
+
+    judge_prompt = f"""
+    You are an impartial Debate Moderator evaluating an adversarial debate between a Bull and Bear researcher on this trade: {proposed_trade}.
+
+    Current Debate Transcript:
+    {debate_transcript}
+
+    Determine whether:
+    1. A clear consensus or insurmountable objection has already been established such that further debate will not yield new insights (EARLY STOP).
+    2. Further debate is warranted to clarify unresolved risks or claims (CONTINUE).
+
+    Return your evaluation strictly as JSON:
+    {{
+        "decision": "CONTINUE" | "STOP",
+        "reasoning": "brief reason"
+    }}
+    """
+
+    judge_agent = create_deep_agent(
+        model="google_genai:gemini-1.5-pro",
+        tools=[],
+        system_prompt="You are a strict, impartial debate moderator. Output JSON only.",
+    )
+
+    try:
+        result = await judge_agent.ainvoke(
+            {"messages": [HumanMessage(content=judge_prompt)]},
+            {"recursion_limit": 4}
+        )
+        final_msg = result["messages"][-1].content
+        if "```json" in final_msg:
+            json_str = final_msg.split("```json")[1].split("```")[0].strip()
+        elif "```" in final_msg:
+            json_str = final_msg.split("```")[1].split("```")[0].strip()
+        else:
+            json_str = final_msg
+        parsed = json.loads(json_str)
+        decision = parsed.get("decision", "STOP").upper()
+    except Exception:
+        # Default to STOP after round 2 to keep latency balanced if parser fails
+        decision = "CONTINUE" if round_num < 2 else "STOP"
+
+    status = "ongoing" if decision == "CONTINUE" else "concluded"
+    return {"debate_status": status}
+
+def route_debate_decision(state: AgentState):
+    if state.get("debate_status") == "ongoing":
+        return "bull_agent"
+    return "risk_manager"
+
+async def risk_manager_node(state: AgentState):
+    proposed_trade = state.get("proposed_trade")
+    if not proposed_trade or proposed_trade.get("action") == "HOLD":
+        return {
+            "risk_assessment": "No trade to evaluate.",
+            "risk_decision": "HOLD",
+            "proposed_trade": proposed_trade
+        }
+
+    market_data = state.get('market_data')
+    sentiment_data = state.get('sentiment_data')
+    technical_data = state.get('technical_data')
+    strategy_decision = state.get('strategy_decision')
+    debate_transcript = state.get('debate_transcript', 'No debate occurred.')
+
+    context = f"""
+    Proposed Trade: {proposed_trade}
+    Strategy Reasoning: {strategy_decision}
+    Market Context: {market_data}
+    Sentiment Data: {sentiment_data}
+    Technical Data: {technical_data}
+
+    Debate Transcript:
+    {debate_transcript}
+    """
+
+    system_prompt = f"""
+    You are a strict Risk Manager. Your task is to make a final decision on the proposed trade by reviewing the market context and the debate between the Bull and Bear researchers.
+
+    Context:
+    {context}
+
+    Approve or reject the trade based on standard risk management principles (capital preservation, risk/reward asymmetry, volatility).
+    You MUST output your decision strictly as JSON:
+    {{
+        "decision": "APPROVE" or "REJECT",
+        "reasoning": "Detailed justification based on the debate and market factors"
+    }}
+    """
+
+    risk_manager_agent = create_deep_agent(
+        model="google_genai:gemini-1.5-pro",
+        tools=[],
+        system_prompt=system_prompt,
+    )
+
+    try:
         rm_result = await risk_manager_agent.ainvoke(
-            {"messages": [HumanMessage(content="Evaluate the risk based on the debate and output your decision as JSON: {\"decision\": \"APPROVE\" or \"REJECT\", \"reasoning\": \"...\"}")]},
+            {"messages": [HumanMessage(content="Evaluate the trade risk and output your decision as JSON.")]},
             {"recursion_limit": 4}
         )
         final_message = rm_result["messages"][-1].content
@@ -265,20 +406,29 @@ async def evaluate_risk(state: AgentState):
             parsed = json.loads(json_str)
             decision = parsed.get("decision", "REJECT").upper()
             reasoning = parsed.get("reasoning", final_message)
-        except:
-             decision = "REJECT" if "REJECT" in final_message.upper() else "APPROVE"
-             reasoning = final_message
+        except Exception:
+            decision = "REJECT" if "REJECT" in final_message.upper() else "APPROVE"
+            reasoning = final_message
 
         if decision == "REJECT":
             proposed_trade["action"] = "HOLD"
             proposed_trade["amount"] = 0.0
-        return {"risk_assessment": reasoning, "proposed_trade": proposed_trade}
+
+        return {
+            "risk_assessment": reasoning,
+            "risk_decision": decision,
+            "proposed_trade": proposed_trade
+        }
     except Exception as e:
         proposed_trade["action"] = "HOLD"
-        return {"risk_assessment": f"Error: {e}", "proposed_trade": proposed_trade}
+        proposed_trade["amount"] = 0.0
+        return {
+            "risk_assessment": f"Risk assessment error: {e}",
+            "risk_decision": "REJECT",
+            "proposed_trade": proposed_trade
+        }
 
-# Agent 6: Execution Agent (Remains same, just a simple function)
-async def execute_trade(state: AgentState):
+async def execute_trade_node(state: AgentState):
     proposed_trade = state.get("proposed_trade")
     if not proposed_trade or proposed_trade.get("action") == "HOLD":
         return {"trade_executed": False}
@@ -286,21 +436,52 @@ async def execute_trade(state: AgentState):
     data = await call_mcp_tool("execute_trade", {"proposed_trade": proposed_trade})
     return {"trade_executed": data.get("trade_executed", False)}
 
-# Build the Graph
-def build_trading_graph():
+# Build the Graph with Checkpointer for HITL
+def build_trading_graph(checkpointer=None):
     workflow = StateGraph(AgentState)
     
     # Add nodes
     workflow.add_node("formulate_strategy", formulate_strategy)
-    workflow.add_node("evaluate_risk", evaluate_risk)
-    workflow.add_node("execute_trade", execute_trade)
+    workflow.add_node("bull_agent", bull_agent_node)
+    workflow.add_node("bear_agent", bear_agent_node)
+    workflow.add_node("debate_judge", debate_judge_node)
+    workflow.add_node("risk_manager", risk_manager_node)
+    workflow.add_node("execute_trade", execute_trade_node)
     
-    # Define edges (sequential)
+    # Entry point
     workflow.set_entry_point("formulate_strategy")
-    workflow.add_edge("formulate_strategy", "evaluate_risk")
-    workflow.add_edge("evaluate_risk", "execute_trade")
+
+    # Conditional edge from formulate_strategy
+    workflow.add_conditional_edges(
+        "formulate_strategy",
+        should_start_debate,
+        {
+            "bull_agent": "bull_agent",
+            "risk_manager": "risk_manager"
+        }
+    )
+
+    # Debate loop edges
+    workflow.add_edge("bull_agent", "bear_agent")
+    workflow.add_edge("bear_agent", "debate_judge")
+    workflow.add_conditional_edges(
+        "debate_judge",
+        route_debate_decision,
+        {
+            "bull_agent": "bull_agent",
+            "risk_manager": "risk_manager"
+        }
+    )
+
+    # Risk manager to execute_trade
+    workflow.add_edge("risk_manager", "execute_trade")
     workflow.add_edge("execute_trade", END)
     
-    return workflow.compile()
+    # Interrupt before execute_trade to enable Human-in-the-Loop review
+    return workflow.compile(
+        checkpointer=checkpointer,
+        interrupt_before=["execute_trade"]
+    )
 
-trading_graph = build_trading_graph()
+trading_checkpointer = MemorySaver()
+trading_graph = build_trading_graph(checkpointer=trading_checkpointer)

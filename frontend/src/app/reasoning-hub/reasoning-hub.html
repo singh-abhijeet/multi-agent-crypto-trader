@@ -19,6 +19,11 @@
       <pre>{{ log.strategy_decision }}</pre>
     </div>
 
+    <div class="section debate" *ngIf="log.debate_transcript">
+      <h4>Adversarial Debate Transcript (Bull vs Bear)</h4>
+      <pre>{{ log.debate_transcript }}</pre>
+    </div>
+
     <div class="section risk">
       <h4>Risk Agent (Gemini) Evaluation</h4>
       <pre>{{ log.risk_assessment }}</pre>
@@ -29,6 +34,7 @@
         Outcome: {{ log.trade_executed ? 'Trade Executed' : 'Trade Rejected/Held' }}
       </span>
       <span *ngIf="log.trade_executed"> ({{ log.proposed_trade?.action }} {{ log.proposed_trade?.amount }} {{ log.proposed_trade?.asset }})</span>
+      <span *ngIf="log.human_decision" class="hitl-badge"> [HITL: {{ log.human_decision }}]</span>
     </div>
   </div>
 </div>

@@ -13,6 +13,7 @@ import { ApiService } from '../api';
 export class TradeControls {
   assetToTrade: string = 'BTC';
   isProcessing: boolean = false;
+  isApproving: boolean = false;
   lastResult: any = null;
 
   @Output() cycleComplete = new EventEmitter<void>();
@@ -30,6 +31,21 @@ export class TradeControls {
       this.lastResult = { status: 'error', message: 'Cycle failed. See console.' };
     } finally {
       this.isProcessing = false;
+    }
+  }
+
+  async resolveApproval(approved: boolean) {
+    if (!this.lastResult?.thread_id) return;
+    this.isApproving = true;
+    try {
+      const response = await this.api.approveTrade(this.lastResult.thread_id, approved);
+      this.lastResult = response;
+      this.cycleComplete.emit();
+    } catch (e) {
+      console.error(e);
+      this.lastResult = { status: 'error', message: 'Failed to record decision.' };
+    } finally {
+      this.isApproving = false;
     }
   }
 }
